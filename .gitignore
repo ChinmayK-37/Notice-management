@@ -1,0 +1,12 @@
+target/
+*.log
+*.class
+*.jar
+*.war
+node_modules/
+.env
+
+.build/
+.dart_tool/
+.packages
+pubspec.lock
