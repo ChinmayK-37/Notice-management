@@ -20,7 +20,6 @@ class AuthService {
           'password': password,
         },
       );
-      print('LOGIN RESPONSE: ${response.data}');
 
       final dynamic responseData = response.data;
       if (responseData is! Map<String, dynamic>) {
