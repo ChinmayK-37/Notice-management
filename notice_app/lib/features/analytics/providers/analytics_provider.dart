@@ -5,17 +5,11 @@ import 'package:notice_app/features/analytics/data/analytics_service.dart';
 import 'package:notice_app/features/auth/providers/auth_provider.dart';
 
 final analyticsServiceProvider = Provider<AnalyticsService>(
-  (ref) => AnalyticsService(
-    apiService: ref.read(apiServiceProvider),
-  ),
+  (ref) => AnalyticsService(apiService: ref.read(apiServiceProvider)),
 );
 
 class AnalyticsState {
-  const AnalyticsState({
-    this.analytics,
-    this.isLoading = false,
-    this.error,
-  });
+  const AnalyticsState({this.analytics, this.isLoading = false, this.error});
 
   final AnalyticsModel? analytics;
   final bool isLoading;
@@ -60,5 +54,5 @@ class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
 
 final analyticsProvider =
     StateNotifierProvider<AnalyticsNotifier, AnalyticsState>(
-  (ref) => AnalyticsNotifier(ref.read(analyticsServiceProvider)),
-);
+      (ref) => AnalyticsNotifier(ref.read(analyticsServiceProvider)),
+    );

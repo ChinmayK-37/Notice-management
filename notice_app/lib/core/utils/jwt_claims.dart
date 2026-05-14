@@ -28,8 +28,10 @@ abstract final class JwtClaims {
     if (exp is! num) {
       return true;
     }
-    final expiry =
-        DateTime.fromMillisecondsSinceEpoch(exp.toInt() * 1000, isUtc: true);
+    final expiry = DateTime.fromMillisecondsSinceEpoch(
+      exp.toInt() * 1000,
+      isUtc: true,
+    );
     return !DateTime.now().toUtc().isBefore(expiry);
   }
 

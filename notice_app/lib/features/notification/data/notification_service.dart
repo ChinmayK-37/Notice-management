@@ -17,8 +17,9 @@ class NotificationService {
 
   Future<void> acknowledge(int notificationId) async {
     try {
-      await apiService.dio
-          .put<dynamic>('/notifications/$notificationId/acknowledge');
+      await apiService.dio.put<dynamic>(
+        '/notifications/$notificationId/acknowledge',
+      );
     } catch (error) {
       throw Exception(ErrorHandler.getMessage(error));
     }

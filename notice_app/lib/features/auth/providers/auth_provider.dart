@@ -8,9 +8,7 @@ import 'package:notice_app/features/auth/data/auth_service.dart';
 import 'package:notice_app/features/auth/data/profile_service.dart';
 
 final apiServiceProvider = Provider<ApiService>(
-  (ref) => ApiService(
-    tokenService: ref.watch(tokenServiceProvider),
-  ),
+  (ref) => ApiService(tokenService: ref.watch(tokenServiceProvider)),
 );
 
 final tokenServiceProvider = Provider<TokenService>((ref) => TokenService());
@@ -23,9 +21,7 @@ final authServiceProvider = Provider<AuthService>(
 );
 
 final profileServiceProvider = Provider<ProfileService>(
-  (ref) => ProfileService(
-    apiService: ref.read(apiServiceProvider),
-  ),
+  (ref) => ProfileService(apiService: ref.read(apiServiceProvider)),
 );
 
 class AuthState {
@@ -59,7 +55,7 @@ class AuthState {
 
 class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._authService, this._tokenService)
-      : super(const AuthState(isLoading: true)) {
+    : super(const AuthState(isLoading: true)) {
     unawaited(restoreSession());
   }
 
@@ -93,10 +89,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {

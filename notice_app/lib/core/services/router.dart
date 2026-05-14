@@ -11,18 +11,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/login',
     routes: <RouteBase>[
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
         path: '/register',
         builder: (context, state) => const RegisterScreen(),
       ),
-      GoRoute(
-        path: '/home',
-        builder: (context, state) => const MainScreen(),
-      ),
+      GoRoute(path: '/home', builder: (context, state) => const MainScreen()),
     ],
     redirect: (context, state) {
       if (authState.isLoading) {

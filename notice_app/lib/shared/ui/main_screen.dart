@@ -33,38 +33,44 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final int unreadCount = ref.watch(notificationProvider).notifications
+    final int unreadCount = ref
+        .watch(notificationProvider)
+        .notifications
         .where((n) => !n.isRead)
         .length;
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Colors.grey,
-        showSelectedLabels: true,
-        showUnselectedLabels: true,
-        onTap: (index) {
+      body: IndexedStack(index: _currentIndex, children: _screens),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+        onDestinationSelected: (index) {
           setState(() {
             _currentIndex = index;
           });
         },
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home),
+        destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
             label: 'Home',
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.calendar_month),
+          const NavigationDestination(
+            icon: Icon(Icons.calendar_month_outlined),
+            selectedIcon: Icon(Icons.calendar_month),
             label: 'Calendar',
           ),
-          BottomNavigationBarItem(
+          NavigationDestination(
             icon: unreadCount > 0
+                ? Badge(
+                    label: Text(
+                      unreadCount > 99 ? '99+' : '$unreadCount',
+                      style: const TextStyle(fontSize: 10),
+                    ),
+                    child: const Icon(Icons.notifications_outlined),
+                  )
+                : const Icon(Icons.notifications_outlined),
+            selectedIcon: unreadCount > 0
                 ? Badge(
                     label: Text(
                       unreadCount > 99 ? '99+' : '$unreadCount',
@@ -75,8 +81,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                 : const Icon(Icons.notifications),
             label: 'Notifications',
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person),
+          const NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
             label: 'Profile',
           ),
         ],

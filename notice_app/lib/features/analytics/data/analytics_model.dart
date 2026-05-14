@@ -13,8 +13,7 @@ class AnalyticsModel {
     final int total = (json['totalUsers'] as num?)?.toInt() ?? 0;
 
     final double? readPct = (json['readPercentage'] as num?)?.toDouble();
-    final double? ackPct =
-        (json['acknowledgedPercentage'] as num?)?.toDouble();
+    final double? ackPct = (json['acknowledgedPercentage'] as num?)?.toDouble();
     if (readPct != null || ackPct != null) {
       return AnalyticsModel(
         totalUsers: total,
@@ -30,8 +29,9 @@ class AnalyticsModel {
     return AnalyticsModel(
       totalUsers: total,
       readPercentage: total == 0 ? 0 : (readCount * 100.0) / total,
-      acknowledgedPercentage:
-          total == 0 ? 0 : (acknowledgedCount * 100.0) / total,
+      acknowledgedPercentage: total == 0
+          ? 0
+          : (acknowledgedCount * 100.0) / total,
     );
   }
 }

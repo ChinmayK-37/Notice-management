@@ -6,9 +6,7 @@ import 'package:notice_app/features/notification/data/notification_service.dart'
 import '../data/notification_model.dart';
 
 final notificationServiceProvider = Provider<NotificationService>(
-  (ref) => NotificationService(
-    apiService: ref.read(apiServiceProvider),
-  ),
+  (ref) => NotificationService(apiService: ref.read(apiServiceProvider)),
 );
 
 class NotificationState {
@@ -47,10 +45,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
     try {
       final data = await service.getNotifications();
 
-      state = NotificationState(
-        notifications: data,
-        isLoading: false,
-      );
+      state = NotificationState(notifications: data, isLoading: false);
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
@@ -70,9 +65,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       }).toList();
       state = state.copyWith(notifications: updated);
     } catch (error) {
-      state = state.copyWith(
-        error: ErrorHandler.getMessage(error),
-      );
+      state = state.copyWith(error: ErrorHandler.getMessage(error));
     }
   }
 
@@ -87,15 +80,13 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       }).toList();
       state = state.copyWith(notifications: updated);
     } catch (error) {
-      state = state.copyWith(
-        error: ErrorHandler.getMessage(error),
-      );
+      state = state.copyWith(error: ErrorHandler.getMessage(error));
     }
   }
 }
 
-final notificationProvider = StateNotifierProvider<
-    NotificationNotifier, NotificationState>((ref) {
-  final service = ref.read(notificationServiceProvider);
-  return NotificationNotifier(service);
-});
+final notificationProvider =
+    StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
+      final service = ref.read(notificationServiceProvider);
+      return NotificationNotifier(service);
+    });

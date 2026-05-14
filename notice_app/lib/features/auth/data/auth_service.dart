@@ -3,10 +3,7 @@ import 'package:notice_app/core/services/token_service.dart';
 import 'package:notice_app/core/utils/error_handler.dart';
 
 class AuthService {
-  AuthService({
-    required this.apiService,
-    required this.tokenService,
-  });
+  AuthService({required this.apiService, required this.tokenService});
 
   final ApiService apiService;
   final TokenService tokenService;
@@ -34,10 +31,7 @@ class AuthService {
     try {
       final response = await apiService.post(
         '/auth/login',
-        data: <String, dynamic>{
-          'email': email,
-          'password': password,
-        },
+        data: <String, dynamic>{'email': email, 'password': password},
       );
       await _persistTokensFromEnvelope(response.data);
     } catch (error) {

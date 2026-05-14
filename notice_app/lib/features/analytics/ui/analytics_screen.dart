@@ -3,10 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notice_app/features/analytics/providers/analytics_provider.dart';
 
 class AnalyticsScreen extends ConsumerStatefulWidget {
-  const AnalyticsScreen({
-    required this.noticeId,
-    super.key,
-  });
+  const AnalyticsScreen({required this.noticeId, super.key});
 
   final String noticeId;
 
@@ -19,7 +16,8 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
   void initState() {
     super.initState();
     Future<void>.microtask(
-      () => ref.read(analyticsProvider.notifier).fetchAnalytics(widget.noticeId),
+      () =>
+          ref.read(analyticsProvider.notifier).fetchAnalytics(widget.noticeId),
     );
   }
 
@@ -29,123 +27,233 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final analytics = state.analytics;
     final scheme = Theme.of(context).colorScheme;
 
+    final readCount = analytics == null
+        ? 0
+        : ((analytics.totalUsers * analytics.readPercentage) / 100).round();
+    final ackCount = analytics == null
+        ? 0
+        : ((analytics.totalUsers * analytics.acknowledgedPercentage) / 100)
+              .round();
+    final unreadCount = analytics == null
+        ? 0
+        : analytics.totalUsers - readCount;
+
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Engagement analytics'),
-      ),
-      body: LayoutBuilder(
-        builder: (context, constraints) {
-          final double maxW = constraints.maxWidth < 520
-              ? constraints.maxWidth
-              : 480.0;
-          return Align(
-            alignment: Alignment.topCenter,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: maxW),
-                child: state.isLoading
-                    ? const Padding(
-                        padding: EdgeInsets.only(top: 48),
-                        child: Center(child: CircularProgressIndicator()),
-                      )
-                    : state.error != null
-                        ? _ErrorMessage(message: state.error!)
-                        : analytics == null
-                            ? const _ErrorMessage(
-                                message: 'No analytics data available.',
-                              )
-                            : Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  Card(
-                                    elevation: 0,
-                                    color: scheme.surfaceContainerHighest
-                                        .withValues(alpha: 0.65),
-                                    child: Padding(
-                                      padding: const EdgeInsets.all(16),
-                                      child: Row(
-                                        children: [
-                                          Icon(
-                                            Icons.groups_outlined,
-                                            size: 36,
-                                            color: scheme.primary,
-                                          ),
-                                          const SizedBox(width: 14),
-                                          Expanded(
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  'Recipients tracked',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .labelLarge
-                                                      ?.copyWith(
-                                                        color: scheme
-                                                            .onSurfaceVariant,
-                                                      ),
-                                                ),
-                                                const SizedBox(height: 4),
-                                                Text(
-                                                  '${analytics.totalUsers}',
-                                                  style: Theme.of(context)
-                                                      .textTheme
-                                                      .headlineSmall
-                                                      ?.copyWith(
-                                                        fontWeight:
-                                                            FontWeight.w700,
-                                                      ),
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
+      appBar: AppBar(title: const Text('Engagement analytics')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 920),
+          child: RefreshIndicator(
+            onRefresh: () => ref
+                .read(analyticsProvider.notifier)
+                .fetchAnalytics(widget.noticeId),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+              children: [
+                if (state.isLoading && analytics == null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 96),
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (state.error != null && analytics == null)
+                  _StatePanel(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Analytics unavailable',
+                    message: state.error!,
+                  )
+                else if (analytics == null)
+                  const _StatePanel(
+                    icon: Icons.insights_outlined,
+                    title: 'No analytics yet',
+                    message:
+                        'Engagement data appears once notifications are created.',
+                  )
+                else ...[
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: scheme.primaryContainer.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(22),
+                    ),
+                    child: Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 26,
+                          backgroundColor: scheme.primary,
+                          foregroundColor: scheme.onPrimary,
+                          child: const Icon(Icons.insights_outlined),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Notice engagement',
+                                style: Theme.of(context).textTheme.labelLarge
+                                    ?.copyWith(
+                                      color: scheme.onPrimaryContainer,
                                     ),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  _PercentageCard(
-                                    title: 'Read',
-                                    subtitle: 'Students who opened the notice',
-                                    percentage: analytics.readPercentage,
-                                    color: scheme.primary,
-                                    icon: Icons.visibility_outlined,
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _PercentageCard(
-                                    title: 'Acknowledged',
-                                    subtitle: 'Students who confirmed receipt',
-                                    percentage: analytics.acknowledgedPercentage,
-                                    color: scheme.tertiary,
-                                    icon: Icons.task_alt,
-                                  ),
-                                ],
                               ),
-              ),
+                              Text(
+                                '${analytics.totalUsers} targeted recipients',
+                                style: Theme.of(context).textTheme.titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.w900,
+                                      color: scheme.onPrimaryContainer,
+                                    ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  _MetricGrid(
+                    metrics: [
+                      _MetricData(
+                        label: 'Reads',
+                        value: '$readCount',
+                        icon: Icons.visibility_outlined,
+                        color: scheme.primary,
+                      ),
+                      _MetricData(
+                        label: 'Unread',
+                        value: '$unreadCount',
+                        icon: Icons.mark_email_unread_outlined,
+                        color: Colors.orange.shade700,
+                      ),
+                      _MetricData(
+                        label: 'Acknowledged',
+                        value: '$ackCount',
+                        icon: Icons.task_alt_outlined,
+                        color: Colors.green.shade700,
+                      ),
+                      _MetricData(
+                        label: 'Pending ack',
+                        value: '${analytics.totalUsers - ackCount}',
+                        icon: Icons.pending_actions_outlined,
+                        color: Colors.blueGrey.shade700,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  _PercentageCard(
+                    title: 'Read rate',
+                    subtitle: 'Students who opened the notice',
+                    percentage: analytics.readPercentage,
+                    color: scheme.primary,
+                    icon: Icons.visibility_outlined,
+                  ),
+                  const SizedBox(height: 12),
+                  _PercentageCard(
+                    title: 'Acknowledgement rate',
+                    subtitle: 'Students who confirmed receipt',
+                    percentage: analytics.acknowledgedPercentage,
+                    color: Colors.green.shade700,
+                    icon: Icons.task_alt,
+                  ),
+                ],
+              ],
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
 }
 
-class _ErrorMessage extends StatelessWidget {
-  const _ErrorMessage({required this.message});
+class _MetricData {
+  const _MetricData({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
 
-  final String message;
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+}
+
+class _MetricGrid extends StatelessWidget {
+  const _MetricGrid({required this.metrics});
+
+  final List<_MetricData> metrics;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: 48),
-      child: Center(
-        child: Text(
-          message,
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Theme.of(context).colorScheme.error),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 720 ? 4 : 2;
+        return GridView.builder(
+          itemCount: metrics.length,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: columns == 4 ? 2.2 : 1.65,
+          ),
+          itemBuilder: (context, index) => _MetricCard(data: metrics[index]),
+        );
+      },
+    );
+  }
+}
+
+class _MetricCard extends StatelessWidget {
+  const _MetricCard({required this.data});
+
+  final _MetricData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.62),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: data.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(data.icon, color: data.color, size: 21),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    data.value,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  Text(
+                    data.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -182,37 +290,84 @@ class _PercentageCard extends StatelessWidget {
               children: [
                 Icon(icon, color: color, size: 22),
                 const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
                 Text(
-                  title,
+                  '${percentage.toStringAsFixed(1)}%',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant),
             ),
             const SizedBox(height: 14),
-            Text(
-              '${percentage.toStringAsFixed(1)}%',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: color,
-                  ),
-            ),
-            const SizedBox(height: 10),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: LinearProgressIndicator(
                 value: progress,
                 color: color,
                 backgroundColor: color.withValues(alpha: 0.15),
-                minHeight: 10,
+                minHeight: 11,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatePanel extends StatelessWidget {
+  const _StatePanel({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        child: Column(
+          children: [
+            Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],

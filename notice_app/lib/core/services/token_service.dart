@@ -3,11 +3,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// Persists access/refresh tokens. When [memory] is non-null (e.g. in tests),
 /// reads/writes use the map instead of secure storage.
 class TokenService {
-  TokenService({
-    FlutterSecureStorage? storage,
-    Map<String, String>? memory,
-  })  : _memory = memory,
-        _storage = memory != null ? null : (storage ?? const FlutterSecureStorage());
+  TokenService({FlutterSecureStorage? storage, Map<String, String>? memory})
+    : _memory = memory,
+      _storage = memory != null
+          ? null
+          : (storage ?? const FlutterSecureStorage());
 
   static const String _accessTokenKey = 'access_token';
   static const String _refreshTokenKey = 'refresh_token';

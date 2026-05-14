@@ -4,9 +4,7 @@ import 'package:notice_app/features/notice/data/notice_service.dart';
 import 'package:notice_app/shared/models/notice_model.dart';
 
 final noticeServiceProvider = Provider<NoticeService>(
-  (ref) => NoticeService(
-    apiService: ref.read(apiServiceProvider),
-  ),
+  (ref) => NoticeService(apiService: ref.read(apiServiceProvider)),
 );
 
 class NoticeState {

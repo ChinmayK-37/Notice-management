@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:notice_app/features/notice/providers/notice_provider.dart';
 import 'package:notice_app/features/notice/ui/notice_detail_screen.dart';
 import 'package:notice_app/shared/models/notice_model.dart';
+import 'package:notice_app/shared/widgets/notice_visuals.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class CalendarScreen extends ConsumerStatefulWidget {
@@ -21,19 +22,10 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   void initState() {
     super.initState();
     _focusedDay = DateTime.now();
-    _selectedDay = DateTime(
-      _focusedDay.year,
-      _focusedDay.month,
-      _focusedDay.day,
-    );
-
+    _selectedDay = NoticeVisuals.dateOnly(_focusedDay);
     Future<void>.microtask(
       () => ref.read(noticeProvider.notifier).fetchNotices(),
     );
-  }
-
-  DateTime _dateOnly(DateTime date) {
-    return DateTime(date.year, date.month, date.day);
   }
 
   Map<DateTime, List<NoticeModel>> _groupByExpiryDate(
@@ -45,33 +37,24 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
       if (expiry == null) {
         continue;
       }
-      final key = _dateOnly(expiry);
-      grouped.putIfAbsent(key, () => <NoticeModel>[]);
-      grouped[key]!.add(notice);
+      final key = NoticeVisuals.dateOnly(expiry);
+      grouped.putIfAbsent(key, () => <NoticeModel>[]).add(notice);
     }
     return grouped;
   }
 
-  List<NoticeModel> _withoutExpiry(List<NoticeModel> notices) {
-    return notices.where((n) => n.expiryDate == null).toList();
+  List<NoticeModel> _upcoming(List<NoticeModel> notices) {
+    final now = DateTime.now();
+    final sorted =
+        notices
+            .where((n) => n.expiryDate != null && n.expiryDate!.isAfter(now))
+            .toList()
+          ..sort((a, b) => a.expiryDate!.compareTo(b.expiryDate!));
+    return sorted.take(4).toList();
   }
 
-  bool _isExpired(NoticeModel notice) {
-    final expiry = notice.expiryDate;
-    if (expiry == null) {
-      return false;
-    }
-    final today = _dateOnly(DateTime.now());
-    return _dateOnly(expiry).isBefore(today);
-  }
-
-  String _subtitleLine(NoticeModel notice) {
-    final audience = notice.department;
-    final expiry = notice.expiryDate;
-    if (expiry == null) {
-      return '$audience - No expiry date';
-    }
-    return '$audience - ${DateFormat('dd MMM yyyy').format(expiry)}';
+  Future<void> _refresh() {
+    return ref.read(noticeProvider.notifier).fetchNotices();
   }
 
   @override
@@ -79,114 +62,118 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final noticeState = ref.watch(noticeProvider);
     final notices = noticeState.notices;
     final grouped = _groupByExpiryDate(notices);
-    final openEnded = _withoutExpiry(notices);
     final selectedNotices = grouped[_selectedDay] ?? <NoticeModel>[];
+    final upcoming = _upcoming(notices);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Calendar')),
-      body: noticeState.isLoading && notices.isEmpty
-          ? const Center(child: CircularProgressIndicator())
-          : noticeState.error != null && notices.isEmpty
-          ? Center(child: Text(noticeState.error!))
-          : Column(
-              children: [
-                if (openEnded.isNotEmpty)
-                  Material(
-                    color: Theme.of(context).colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.6),
-                    child: ExpansionTile(
-                      title: Text(
-                        'No expiry date (${openEnded.length})',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      children: openEnded
-                          .map(
-                            (notice) => ListTile(
-                              dense: true,
-                              title: Text(notice.title),
-                              subtitle: Text(notice.department),
-                              onTap: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        NoticeDetailScreen(notice: notice),
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: noticeState.isLoading && notices.isEmpty
+            ? const Center(child: CircularProgressIndicator())
+            : noticeState.error != null && notices.isEmpty
+            ? ListView(
+                padding: const EdgeInsets.all(24),
+                children: [
+                  const SizedBox(height: 80),
+                  _EmptyCalendarState(
+                    icon: Icons.cloud_off_outlined,
+                    title: 'Calendar unavailable',
+                    message: noticeState.error!,
+                  ),
+                ],
+              )
+            : CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 920),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (upcoming.isNotEmpty) ...[
+                                _UpcomingSummary(notices: upcoming),
+                                const SizedBox(height: 12),
+                              ],
+                              Card(
+                                elevation: 0,
+                                color: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
+                                    .withValues(alpha: 0.45),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(8),
+                                  child: TableCalendar<NoticeModel>(
+                                    firstDay: DateTime.utc(2020, 1, 1),
+                                    lastDay: DateTime.utc(2100, 12, 31),
+                                    focusedDay: _focusedDay,
+                                    selectedDayPredicate: (day) =>
+                                        isSameDay(day, _selectedDay),
+                                    eventLoader: (day) =>
+                                        grouped[NoticeVisuals.dateOnly(day)] ??
+                                        [],
+                                    onDaySelected: (selectedDay, focusedDay) {
+                                      setState(() {
+                                        _selectedDay = NoticeVisuals.dateOnly(
+                                          selectedDay,
+                                        );
+                                        _focusedDay = focusedDay;
+                                      });
+                                    },
+                                    headerStyle: const HeaderStyle(
+                                      formatButtonVisible: false,
+                                      titleCentered: true,
+                                    ),
+                                    calendarStyle: CalendarStyle(
+                                      markersMaxCount: 3,
+                                      markerDecoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      todayDecoration: BoxDecoration(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary
+                                            .withValues(alpha: 0.28),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      selectedDecoration: BoxDecoration(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                    ),
                                   ),
-                                );
-                              },
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                TableCalendar<NoticeModel>(
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2100, 12, 31),
-                  focusedDay: _focusedDay,
-                  selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
-                  eventLoader: (day) => grouped[_dateOnly(day)] ?? [],
-                  onDaySelected: (selectedDay, focusedDay) {
-                    setState(() {
-                      _selectedDay = _dateOnly(selectedDay);
-                      _focusedDay = focusedDay;
-                    });
-                  },
-                  calendarStyle: CalendarStyle(
-                    markerDecoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                    todayDecoration: BoxDecoration(
-                      color: Colors.blue.withValues(alpha: 0.35),
-                      shape: BoxShape.circle,
-                    ),
-                    selectedDecoration: const BoxDecoration(
-                      color: Colors.blue,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: selectedNotices.isEmpty
-                      ? Center(
-                          child: Text(
-                            grouped.isEmpty && openEnded.isEmpty
-                                ? 'No notices to show.'
-                                : 'No notices for selected date.',
-                          ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: selectedNotices.length,
-                          itemBuilder: (context, index) {
-                            final notice = selectedNotices[index];
-                            final expired = _isExpired(notice);
-
-                            return Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              child: TweenAnimationBuilder<double>(
-                                tween: Tween<double>(begin: 0, end: 1),
-                                duration: Duration(
-                                  milliseconds: 220 + (index * 50),
                                 ),
-                                curve: Curves.easeOut,
-                                builder: (context, value, child) {
-                                  return Opacity(
-                                    opacity: value,
-                                    child: Transform.translate(
-                                      offset: Offset(0, 10 * (1 - value)),
-                                      child: child,
-                                    ),
-                                  );
-                                },
-                                child: AnimatedContainer(
-                                  duration: const Duration(milliseconds: 220),
-                                  curve: Curves.easeOut,
-                                  child: ListTile(
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 8,
-                                    ),
+                              ),
+                              const SizedBox(height: 16),
+                              _SelectedDayHeader(
+                                date: _selectedDay,
+                                count: selectedNotices.length,
+                              ),
+                              const SizedBox(height: 10),
+                              if (selectedNotices.isEmpty)
+                                _EmptyCalendarState(
+                                  icon: grouped.isEmpty
+                                      ? Icons.event_busy_outlined
+                                      : Icons.event_available_outlined,
+                                  title: grouped.isEmpty
+                                      ? 'No scheduled deadlines'
+                                      : 'No notices for this date',
+                                  message: grouped.isEmpty
+                                      ? 'Notices with expiry dates will populate this academic calendar.'
+                                      : 'Select a marked day or pull to refresh for the latest notices.',
+                                )
+                              else
+                                ...selectedNotices.map(
+                                  (notice) => _CalendarNoticeTile(
+                                    notice: notice,
                                     onTap: () {
                                       Navigator.of(context).push(
                                         MaterialPageRoute<void>(
@@ -196,36 +183,216 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                         ),
                                       );
                                     },
-                                    title: Text(
-                                      notice.title,
-                                      style: TextStyle(
-                                        color: expired ? Colors.red : null,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                    subtitle: Text(
-                                      _subtitleLine(notice),
-                                      style: TextStyle(
-                                        color: expired
-                                            ? Colors.grey.shade700
-                                            : null,
-                                      ),
-                                    ),
-                                    trailing: expired
-                                        ? const Text(
-                                            'Expired',
-                                            style: TextStyle(color: Colors.red),
-                                          )
-                                        : null,
                                   ),
                                 ),
-                              ),
-                            );
-                          },
+                            ],
+                          ),
                         ),
-                ),
-              ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _UpcomingSummary extends StatelessWidget {
+  const _UpcomingSummary({required this.notices});
+
+  final List<NoticeModel> notices;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Theme.of(
+        context,
+      ).colorScheme.primaryContainer.withValues(alpha: 0.65),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Upcoming timeline',
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
             ),
+            const SizedBox(height: 12),
+            ...notices.map(
+              (notice) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 10,
+                      height: 10,
+                      decoration: BoxDecoration(
+                        color: NoticeVisuals.priorityColor(
+                          context,
+                          notice.priority,
+                        ),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        notice.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      NoticeVisuals.deadlineLabel(notice.expiryDate),
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SelectedDayHeader extends StatelessWidget {
+  const _SelectedDayHeader({required this.date, required this.count});
+
+  final DateTime date;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final today = NoticeVisuals.dateOnly(DateTime.now());
+    final selected = NoticeVisuals.dateOnly(date);
+    final label = selected == today
+        ? 'Today'
+        : selected.isBefore(today)
+        ? 'Expired / past'
+        : 'Upcoming';
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                DateFormat('EEEE, dd MMM yyyy').format(date),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              ),
+              Text(
+                label,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Chip(
+          avatar: const Icon(Icons.event_note_outlined, size: 18),
+          label: Text('$count notices'),
+        ),
+      ],
+    );
+  }
+}
+
+class _CalendarNoticeTile extends StatelessWidget {
+  const _CalendarNoticeTile({required this.notice, required this.onTap});
+
+  final NoticeModel notice;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = NoticeVisuals.priorityColor(context, notice.priority);
+    final category = NoticeVisuals.categoryFor(notice);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: ListTile(
+        onTap: onTap,
+        leading: CircleAvatar(
+          backgroundColor: color.withValues(alpha: 0.12),
+          foregroundColor: color,
+          child: Icon(NoticeVisuals.categoryIcon(category)),
+        ),
+        title: Text(
+          notice.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          '${notice.priority.toUpperCase()} - $category - ${notice.department}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        trailing: Icon(
+          NoticeVisuals.isExpired(notice)
+              ? Icons.history_outlined
+              : Icons.arrow_forward_ios_rounded,
+          size: 18,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyCalendarState extends StatelessWidget {
+  const _EmptyCalendarState({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 28),
+        child: Column(
+          children: [
+            Icon(icon, size: 36, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(height: 10),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: Theme.of(
+                context,
+              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -37,26 +37,35 @@ class _AppState extends ConsumerState<App> {
       title: 'Notice Circular',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF2457C5)),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF7F8FC),
         appBarTheme: const AppBarTheme(
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: false,
+          backgroundColor: Color(0xFFF7F8FC),
           titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         cardTheme: CardThemeData(
+          elevation: 1,
+          margin: EdgeInsets.zero,
+          shadowColor: Colors.black12,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE3E7F0)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFF2457C5), width: 1.4),
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(

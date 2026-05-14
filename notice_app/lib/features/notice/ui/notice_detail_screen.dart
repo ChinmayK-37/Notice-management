@@ -6,12 +6,10 @@ import 'package:notice_app/features/auth/providers/auth_provider.dart';
 import 'package:notice_app/features/notice/providers/notice_provider.dart';
 import 'package:notice_app/features/notification/providers/notification_provider.dart';
 import 'package:notice_app/shared/models/notice_model.dart';
+import 'package:notice_app/shared/widgets/notice_visuals.dart';
 
 class NoticeDetailScreen extends ConsumerStatefulWidget {
-  const NoticeDetailScreen({
-    required this.notice,
-    super.key,
-  });
+  const NoticeDetailScreen({required this.notice, super.key});
 
   final NoticeModel notice;
 
@@ -34,19 +32,6 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
     _isAcknowledged = widget.notice.isAcknowledged;
   }
 
-  Color _priorityColor(BuildContext context) {
-    switch (widget.notice.priority.toUpperCase()) {
-      case 'HIGH':
-        return Colors.red;
-      case 'MEDIUM':
-        return Colors.yellow.shade700;
-      case 'LOW':
-        return Colors.green;
-      default:
-        return Theme.of(context).colorScheme.primary;
-    }
-  }
-
   String _summaryText() {
     final lines = widget.notice.description
         .split('\n')
@@ -64,13 +49,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
   Future<void> _markAsRead() async {
     final notificationId = widget.notice.notificationId;
     if (notificationId == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No notification available for this notice'),
-          ),
-        );
-      }
+      _showMessage('No notification available for this notice');
       return;
     }
 
@@ -83,9 +62,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
     });
 
     try {
-      await ref
-          .read(notificationServiceProvider)
-          .markAsRead(notificationId);
+      await ref.read(notificationServiceProvider).markAsRead(notificationId);
 
       if (!mounted) {
         return;
@@ -94,19 +71,11 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
       setState(() {
         _isRead = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Marked as read')),
-      );
+      _showMessage('Marked as read');
       await ref.read(noticeProvider.notifier).fetchNotices();
       await ref.read(notificationProvider.notifier).fetchNotifications();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
-      );
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() {
@@ -119,13 +88,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
   Future<void> _acknowledge() async {
     final notificationId = widget.notice.notificationId;
     if (notificationId == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No notification available for this notice'),
-          ),
-        );
-      }
+      _showMessage('No notification available for this notice');
       return;
     }
 
@@ -138,9 +101,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
     });
 
     try {
-      await ref
-          .read(notificationServiceProvider)
-          .acknowledge(notificationId);
+      await ref.read(notificationServiceProvider).acknowledge(notificationId);
 
       if (!mounted) {
         return;
@@ -149,19 +110,11 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
       setState(() {
         _isAcknowledged = true;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notice acknowledged')),
-      );
+      _showMessage('Notice acknowledged');
       await ref.read(noticeProvider.notifier).fetchNotices();
       await ref.read(notificationProvider.notifier).fetchNotifications();
     } catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.toString().replaceFirst('Exception: ', ''))),
-      );
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
     } finally {
       if (mounted) {
         setState(() {
@@ -171,134 +124,390 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
     }
   }
 
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
-    final priorityColor = _priorityColor(context);
     final authState = ref.watch(authProvider);
+    final category = NoticeVisuals.categoryFor(widget.notice);
+    final priorityColor = NoticeVisuals.priorityColor(
+      context,
+      widget.notice.priority,
+    );
+    final expiry = widget.notice.expiryDate;
+    final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Notice Detail'),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+      appBar: AppBar(title: const Text('Notice details')),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 860),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Expanded(
-                  child: Text(
-                    widget.notice.title,
-                    style: Theme.of(context).textTheme.headlineSmall,
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: priorityColor.withValues(alpha: 0.09),
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: priorityColor.withValues(alpha: 0.22),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _DetailChip(
+                            icon: NoticeVisuals.priorityIcon(
+                              widget.notice.priority,
+                            ),
+                            label: widget.notice.priority.toUpperCase(),
+                            color: priorityColor,
+                          ),
+                          _DetailChip(
+                            icon: NoticeVisuals.categoryIcon(category),
+                            label: category,
+                            color: scheme.primary,
+                          ),
+                          _DetailChip(
+                            icon: Icons.schedule_outlined,
+                            label: NoticeVisuals.deadlineLabel(expiry),
+                            color: NoticeVisuals.isDueSoon(widget.notice)
+                                ? Colors.deepOrange.shade700
+                                : scheme.onSurfaceVariant,
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        widget.notice.title,
+                        style: Theme.of(context).textTheme.headlineSmall
+                            ?.copyWith(
+                              fontWeight: FontWeight.w900,
+                              height: 1.08,
+                            ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        _summaryText(),
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: scheme.onSurfaceVariant,
+                          height: 1.4,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: priorityColor.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    widget.notice.priority.toUpperCase(),
-                    style: TextStyle(
-                      color: priorityColor,
-                      fontWeight: FontWeight.w600,
+                const SizedBox(height: 14),
+                _InfoGrid(
+                  items: [
+                    _InfoItem(
+                      icon: Icons.groups_outlined,
+                      label: 'Audience',
+                      value: widget.notice.department,
+                    ),
+                    _InfoItem(
+                      icon: Icons.event_outlined,
+                      label: 'Deadline',
+                      value: expiry == null
+                          ? 'No expiry date'
+                          : DateFormat('dd MMM yyyy').format(expiry),
+                    ),
+                    _InfoItem(
+                      icon: _isAcknowledged
+                          ? Icons.verified_outlined
+                          : _isRead
+                          ? Icons.mark_email_read_outlined
+                          : Icons.mark_email_unread_outlined,
+                      label: 'Your status',
+                      value: _isAcknowledged
+                          ? 'Acknowledged'
+                          : _isRead
+                          ? 'Read'
+                          : 'Unread',
+                    ),
+                    _InfoItem(
+                      icon: Icons.person_outline,
+                      label: 'Posted by',
+                      value: (widget.notice.createdBy ?? '').trim().isEmpty
+                          ? 'Admin'
+                          : widget.notice.createdBy!,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                Card(
+                  elevation: 0,
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Notice content',
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          widget.notice.description,
+                          style: Theme.of(
+                            context,
+                          ).textTheme.bodyLarge?.copyWith(height: 1.45),
+                        ),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: scheme.outlineVariant),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.attach_file_outlined,
+                                color: scheme.onSurfaceVariant,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Attachments ready - files can be linked with this notice when enabled.',
+                                  style: Theme.of(context).textTheme.bodySmall
+                                      ?.copyWith(
+                                        color: scheme.onSurfaceVariant,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
+                const SizedBox(height: 14),
+                if (authState.isAdmin)
+                  FilledButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) =>
+                              AnalyticsScreen(noticeId: widget.notice.id),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.insights_outlined),
+                    label: const Text('View engagement analytics'),
+                  )
+                else ...[
+                  if (!_hasNotification)
+                    _NoticeWarning(
+                      message:
+                          'No notification record is attached to this notice yet.',
+                    ),
+                  FilledButton.icon(
+                    onPressed:
+                        (!_hasNotification || _isRead || _isMarkReadLoading)
+                        ? null
+                        : _markAsRead,
+                    icon: _isMarkReadLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.mark_email_read_outlined),
+                    label: Text(_isRead ? 'Marked as read' : 'Mark as read'),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed:
+                        (!_hasNotification ||
+                            _isAcknowledged ||
+                            _isAcknowledgeLoading)
+                        ? null
+                        : _acknowledge,
+                    icon: _isAcknowledgeLoading
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.task_alt_outlined),
+                    label: Text(
+                      _isAcknowledged ? 'Acknowledged' : 'Acknowledge notice',
+                    ),
+                  ),
+                ],
               ],
             ),
-            const SizedBox(height: 12),
-            Text(
-              _summaryText(),
-              style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DetailChip extends StatelessWidget {
+  const _DetailChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: color),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
             ),
-            const SizedBox(height: 8),
-            Text(
-              'Audience: ${widget.notice.department}',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            if (widget.notice.createdBy != null &&
-                widget.notice.createdBy!.trim().isNotEmpty) ...[
-              const SizedBox(height: 6),
-              Text(
-                'Posted by: ${widget.notice.createdBy}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoItem {
+  const _InfoItem({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+}
+
+class _InfoGrid extends StatelessWidget {
+  const _InfoGrid({required this.items});
+
+  final List<_InfoItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 640 ? 2 : 1;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
+            childAspectRatio: columns == 2 ? 3.2 : 4.4,
+          ),
+          itemBuilder: (context, index) => _InfoCard(item: items[index]),
+        );
+      },
+    );
+  }
+}
+
+class _InfoCard extends StatelessWidget {
+  const _InfoCard({required this.item});
+
+  final _InfoItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Icon(item.icon, color: scheme.primary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    item.label,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
                     ),
-              ),
-            ],
-            const SizedBox(height: 6),
-            Text(
-              widget.notice.expiryDate == null
-                  ? 'Expiry: none'
-                  : 'Expiry: ${DateFormat('dd MMM yyyy').format(widget.notice.expiryDate!)}',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              widget.notice.description,
-              style: Theme.of(context).textTheme.bodyLarge,
-            ),
-            const SizedBox(height: 12),
-            if (authState.isAdmin)
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => AnalyticsScreen(noticeId: widget.notice.id),
-                      ),
-                    );
-                  },
-                  child: const Text('View Analytics'),
-                ),
-              ),
-            const SizedBox(height: 32),
-            if (!_hasNotification)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  'No notification available for this notice',
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.outline,
                   ),
-                ),
-              ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: (!_hasNotification || _isRead || _isMarkReadLoading)
-                    ? null
-                    : _markAsRead,
-                child: _isMarkReadLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_isRead ? 'Marked as Read' : 'Mark as Read'),
+                  Text(
+                    item.value,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                onPressed: (!_hasNotification ||
-                        _isAcknowledged ||
-                        _isAcknowledgeLoading)
-                    ? null
-                    : _acknowledge,
-                child: _isAcknowledgeLoading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_isAcknowledged ? 'Acknowledged' : 'Acknowledge'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoticeWarning extends StatelessWidget {
+  const _NoticeWarning({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.info_outline, color: scheme.onErrorContainer),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                style: TextStyle(color: scheme.onErrorContainer),
               ),
             ),
           ],

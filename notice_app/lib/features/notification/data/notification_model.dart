@@ -24,7 +24,8 @@ class NotificationModel {
       type: (json['type'] ?? 'NORMAL').toString(),
       isRead: json['isRead'] == true,
       isAcknowledged: json['isAcknowledged'] == true,
-      createdAt: DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
+      createdAt:
+          DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
           DateTime.now(),
       noticeId: json['noticeId'] is int
           ? json['noticeId'] as int
@@ -44,10 +45,7 @@ class NotificationModel {
     };
   }
 
-  NotificationModel copyWith({
-    bool? isRead,
-    bool? isAcknowledged,
-  }) {
+  NotificationModel copyWith({bool? isRead, bool? isAcknowledged}) {
     return NotificationModel(
       id: id,
       message: message,
