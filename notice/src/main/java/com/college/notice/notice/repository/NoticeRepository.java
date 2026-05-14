@@ -18,13 +18,13 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
                     t is null
                     or (t.department = :department and t.year = :year)
                   )
-              and (n.expiryDate is null or n.expiryDate >= :now)
+              and (n.expiryDate is null or n.expiryDate >= :visibilityCutoff)
             order by n.createdAt desc
             """)
     List<Notice> findActiveNoticesVisibleForUser(
             @Param("department") String department,
             @Param("year") Integer year,
-            @Param("now") LocalDateTime now
+            @Param("visibilityCutoff") LocalDateTime visibilityCutoff
     );
 
     @Query("""

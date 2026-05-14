@@ -8,10 +8,12 @@ import 'package:flutter/foundation.dart';
 class AppConstants {
   const AppConstants._();
 
-  static const String appName = 'Notice App';
+  static const String appName = 'Notice Circular';
 
   /// Optional full base URL including path `/api`, e.g. `http://10.0.2.2:8080/api`.
-  static const String _apiBaseUrlOverride = String.fromEnvironment('API_BASE_URL');
+  static const String _apiBaseUrlOverride = String.fromEnvironment(
+    'API_BASE_URL',
+  );
 
   static String get baseUrl {
     final String? normalized = _normalizeOverride(_apiBaseUrlOverride);

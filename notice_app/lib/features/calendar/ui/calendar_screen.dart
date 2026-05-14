@@ -36,7 +36,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     return DateTime(date.year, date.month, date.day);
   }
 
-  Map<DateTime, List<NoticeModel>> _groupByExpiryDate(List<NoticeModel> notices) {
+  Map<DateTime, List<NoticeModel>> _groupByExpiryDate(
+    List<NoticeModel> notices,
+  ) {
     final grouped = <DateTime, List<NoticeModel>>{};
     for (final notice in notices) {
       final expiry = notice.expiryDate;
@@ -67,9 +69,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final audience = notice.department;
     final expiry = notice.expiryDate;
     if (expiry == null) {
-      return '$audience • No expiry date';
+      return '$audience - No expiry date';
     }
-    return '$audience • ${DateFormat('dd MMM yyyy').format(expiry)}';
+    return '$audience - ${DateFormat('dd MMM yyyy').format(expiry)}';
   }
 
   @override
@@ -81,154 +83,149 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
     final selectedNotices = grouped[_selectedDay] ?? <NoticeModel>[];
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Calendar'),
-      ),
+      appBar: AppBar(title: const Text('Calendar')),
       body: noticeState.isLoading && notices.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : noticeState.error != null && notices.isEmpty
-              ? Center(child: Text(noticeState.error!))
-              : Column(
-                  children: [
-                    if (openEnded.isNotEmpty)
-                      Material(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .surfaceContainerHighest
-                            .withValues(alpha: 0.6),
-                        child: ExpansionTile(
-                          title: Text(
-                            'No expiry date (${openEnded.length})',
-                            style: Theme.of(context).textTheme.titleSmall,
-                          ),
-                          children: openEnded
-                              .map(
-                                (notice) => ListTile(
-                                  dense: true,
-                                  title: Text(notice.title),
-                                  subtitle: Text(notice.department),
-                                  onTap: () {
-                                    Navigator.of(context).push(
-                                      MaterialPageRoute<void>(
-                                        builder: (_) =>
-                                            NoticeDetailScreen(notice: notice),
-                                      ),
-                                    );
-                                  },
-                                ),
-                              )
-                              .toList(),
-                        ),
+          ? Center(child: Text(noticeState.error!))
+          : Column(
+              children: [
+                if (openEnded.isNotEmpty)
+                  Material(
+                    color: Theme.of(context).colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.6),
+                    child: ExpansionTile(
+                      title: Text(
+                        'No expiry date (${openEnded.length})',
+                        style: Theme.of(context).textTheme.titleSmall,
                       ),
-                    TableCalendar<NoticeModel>(
-                      firstDay: DateTime.utc(2020, 1, 1),
-                      lastDay: DateTime.utc(2100, 12, 31),
-                      focusedDay: _focusedDay,
-                      selectedDayPredicate: (day) =>
-                          isSameDay(day, _selectedDay),
-                      eventLoader: (day) => grouped[_dateOnly(day)] ?? [],
-                      onDaySelected: (selectedDay, focusedDay) {
-                        setState(() {
-                          _selectedDay = _dateOnly(selectedDay);
-                          _focusedDay = focusedDay;
-                        });
-                      },
-                      calendarStyle: CalendarStyle(
-                        markerDecoration: const BoxDecoration(
-                          color: Colors.blue,
-                          shape: BoxShape.circle,
-                        ),
-                        todayDecoration: BoxDecoration(
-                          color: Colors.blue.withValues(alpha: 0.35),
-                          shape: BoxShape.circle,
-                        ),
-                        selectedDecoration: const BoxDecoration(
-                          color: Colors.blue,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    Expanded(
-                      child: selectedNotices.isEmpty
-                          ? Center(
-                              child: Text(
-                                grouped.isEmpty && openEnded.isEmpty
-                                    ? 'No notices to show.'
-                                    : 'No notices for selected date.',
-                              ),
-                            )
-                          : ListView.builder(
-                              padding: const EdgeInsets.all(16),
-                              itemCount: selectedNotices.length,
-                              itemBuilder: (context, index) {
-                                final notice = selectedNotices[index];
-                                final expired = _isExpired(notice);
-
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 12),
-                                  child: TweenAnimationBuilder<double>(
-                                    tween: Tween<double>(begin: 0, end: 1),
-                                    duration:
-                                        Duration(milliseconds: 220 + (index * 50)),
-                                    curve: Curves.easeOut,
-                                    builder: (context, value, child) {
-                                      return Opacity(
-                                        opacity: value,
-                                        child: Transform.translate(
-                                          offset: Offset(0, 10 * (1 - value)),
-                                          child: child,
-                                        ),
-                                      );
-                                    },
-                                    child: AnimatedContainer(
-                                      duration: const Duration(milliseconds: 220),
-                                      curve: Curves.easeOut,
-                                      child: ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 8,
-                                        ),
-                                        onTap: () {
-                                          Navigator.of(context).push(
-                                            MaterialPageRoute<void>(
-                                              builder: (_) => NoticeDetailScreen(
-                                                  notice: notice),
-                                            ),
-                                          );
-                                        },
-                                        title: Text(
-                                          notice.title,
-                                          style: TextStyle(
-                                            color: expired ? Colors.red : null,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        subtitle: Text(
-                                          _subtitleLine(notice),
-                                          style: TextStyle(
-                                            color: expired
-                                                ? Colors.grey.shade700
-                                                : null,
-                                          ),
-                                        ),
-                                        trailing: expired
-                                            ? const Text(
-                                                'Expired',
-                                                style:
-                                                    TextStyle(color: Colors.red),
-                                              )
-                                            : null,
-                                      ),
-                                    ),
+                      children: openEnded
+                          .map(
+                            (notice) => ListTile(
+                              dense: true,
+                              title: Text(notice.title),
+                              subtitle: Text(notice.department),
+                              onTap: () {
+                                Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) =>
+                                        NoticeDetailScreen(notice: notice),
                                   ),
                                 );
                               },
                             ),
+                          )
+                          .toList(),
                     ),
-                  ],
+                  ),
+                TableCalendar<NoticeModel>(
+                  firstDay: DateTime.utc(2020, 1, 1),
+                  lastDay: DateTime.utc(2100, 12, 31),
+                  focusedDay: _focusedDay,
+                  selectedDayPredicate: (day) => isSameDay(day, _selectedDay),
+                  eventLoader: (day) => grouped[_dateOnly(day)] ?? [],
+                  onDaySelected: (selectedDay, focusedDay) {
+                    setState(() {
+                      _selectedDay = _dateOnly(selectedDay);
+                      _focusedDay = focusedDay;
+                    });
+                  },
+                  calendarStyle: CalendarStyle(
+                    markerDecoration: const BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                    todayDecoration: BoxDecoration(
+                      color: Colors.blue.withValues(alpha: 0.35),
+                      shape: BoxShape.circle,
+                    ),
+                    selectedDecoration: const BoxDecoration(
+                      color: Colors.blue,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
+                const Divider(height: 1),
+                Expanded(
+                  child: selectedNotices.isEmpty
+                      ? Center(
+                          child: Text(
+                            grouped.isEmpty && openEnded.isEmpty
+                                ? 'No notices to show.'
+                                : 'No notices for selected date.',
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.all(16),
+                          itemCount: selectedNotices.length,
+                          itemBuilder: (context, index) {
+                            final notice = selectedNotices[index];
+                            final expired = _isExpired(notice);
+
+                            return Card(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              child: TweenAnimationBuilder<double>(
+                                tween: Tween<double>(begin: 0, end: 1),
+                                duration: Duration(
+                                  milliseconds: 220 + (index * 50),
+                                ),
+                                curve: Curves.easeOut,
+                                builder: (context, value, child) {
+                                  return Opacity(
+                                    opacity: value,
+                                    child: Transform.translate(
+                                      offset: Offset(0, 10 * (1 - value)),
+                                      child: child,
+                                    ),
+                                  );
+                                },
+                                child: AnimatedContainer(
+                                  duration: const Duration(milliseconds: 220),
+                                  curve: Curves.easeOut,
+                                  child: ListTile(
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                      vertical: 8,
+                                    ),
+                                    onTap: () {
+                                      Navigator.of(context).push(
+                                        MaterialPageRoute<void>(
+                                          builder: (_) => NoticeDetailScreen(
+                                            notice: notice,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    title: Text(
+                                      notice.title,
+                                      style: TextStyle(
+                                        color: expired ? Colors.red : null,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                    subtitle: Text(
+                                      _subtitleLine(notice),
+                                      style: TextStyle(
+                                        color: expired
+                                            ? Colors.grey.shade700
+                                            : null,
+                                      ),
+                                    ),
+                                    trailing: expired
+                                        ? const Text(
+                                            'Expired',
+                                            style: TextStyle(color: Colors.red),
+                                          )
+                                        : null,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
     );
   }
 }

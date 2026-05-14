@@ -8,6 +8,7 @@ import com.college.notice.notice.dto.NoticeTargetResponse;
 import com.college.notice.notice.entity.Notice;
 import com.college.notice.notice.entity.NoticeTarget;
 import com.college.notice.notice.event.NoticeCreatedEvent;
+import com.college.notice.notice.config.NoticeExpiryPolicy;
 import com.college.notice.notice.repository.NoticeRepository;
 import com.college.notice.notification.entity.Notification;
 import com.college.notice.notification.repository.NotificationRepository;
@@ -31,6 +32,7 @@ public class NoticeService {
     private final UserRepository userRepository;
     private final NotificationRepository notificationRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final NoticeExpiryPolicy noticeExpiryPolicy;
 
     @Transactional
     public NoticeResponse createNotice(NoticeRequest request) {
@@ -58,12 +60,13 @@ public class NoticeService {
         List<Notice> notices = noticeRepository.findActiveNoticesVisibleForUser(
                 currentUser.getDepartment(),
                 currentUser.getYear(),
-                LocalDateTime.now()
+                noticeExpiryPolicy.visibilityCutoff()
         );
 
         return notices.stream()
                 .map(notice -> {
-                    Optional<Notification> notification = notificationRepository.findByNoticeIdAndUserId(
+                    Optional<Notification> notification = notificationRepository
+                            .findFirstByNoticeIdAndUserIdOrderByIdAsc(
                             notice.getId(),
                             currentUser.getId()
                     );

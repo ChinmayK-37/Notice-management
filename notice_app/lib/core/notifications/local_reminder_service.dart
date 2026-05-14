@@ -52,13 +52,16 @@ class LocalReminderService {
     _initialized = true;
   }
 
-  Future<void> _ensureNotificationPermission() async {
+  Future<bool> _ensureNotificationPermission() async {
     if (defaultTargetPlatform == TargetPlatform.android) {
       final PermissionStatus status = await Permission.notification.status;
       if (!status.isGranted) {
-        await Permission.notification.request();
+        final PermissionStatus requested = await Permission.notification
+            .request();
+        return requested.isGranted;
       }
     }
+    return true;
   }
 
   Future<void> cancelAll() async {
@@ -76,7 +79,10 @@ class LocalReminderService {
       return;
     }
     await _ensureReady();
-    await _ensureNotificationPermission();
+    final bool hasPermission = await _ensureNotificationPermission();
+    if (!hasPermission) {
+      return;
+    }
     await _plugin.cancelAll();
 
     final DateTime now = DateTime.now();
@@ -118,7 +124,8 @@ class LocalReminderService {
           continue;
         }
         final int id = _notificationId(usedIds, notice.id, when);
-        final bool urgent = hoursUntil <= 1;
+        final bool urgent = hoursUntil <= 1 || notice.priority == 'HIGH';
+        final String remaining = _remainingLabel(expiry.difference(when));
         await _plugin.zonedSchedule(
           id: id,
           scheduledDate: tz.TZDateTime.from(when, tz.local),
@@ -127,7 +134,9 @@ class LocalReminderService {
               'notice_deadlines',
               'Notice reminders',
               channelDescription: 'Upcoming notice deadlines',
-              importance: urgent ? Importance.max : Importance.defaultImportance,
+              importance: urgent
+                  ? Importance.max
+                  : Importance.defaultImportance,
               priority: urgent ? Priority.max : Priority.defaultPriority,
             ),
             iOS: const DarwinNotificationDetails(
@@ -137,11 +146,24 @@ class LocalReminderService {
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          title: urgent ? 'Urgent notice' : 'Notice reminder',
-          body: notice.title,
+          title: urgent ? 'Urgent deadline reminder' : 'Deadline reminder',
+          body: '${notice.title} - due in $remaining',
         );
       }
     }
+  }
+
+  String _remainingLabel(Duration duration) {
+    final int totalMinutes = duration.inMinutes;
+    if (totalMinutes <= 60) {
+      return '${totalMinutes.clamp(1, 60)} min';
+    }
+    final int hours = duration.inHours;
+    if (hours < 24) {
+      return '$hours hr';
+    }
+    final int days = duration.inDays;
+    return '$days day${days == 1 ? '' : 's'}';
   }
 
   int _notificationId(Set<int> used, String noticeId, DateTime when) {

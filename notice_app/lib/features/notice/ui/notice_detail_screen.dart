@@ -98,6 +98,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
         const SnackBar(content: Text('Marked as read')),
       );
       await ref.read(noticeProvider.notifier).fetchNotices();
+      await ref.read(notificationProvider.notifier).fetchNotifications();
     } catch (error) {
       if (!mounted) {
         return;
@@ -152,6 +153,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
         const SnackBar(content: Text('Notice acknowledged')),
       );
       await ref.read(noticeProvider.notifier).fetchNotices();
+      await ref.read(notificationProvider.notifier).fetchNotifications();
     } catch (error) {
       if (!mounted) {
         return;

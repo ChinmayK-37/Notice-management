@@ -47,9 +47,9 @@ class NoticeModel {
         continue;
       }
       if (y is num) {
-        parts.add('$d • Year ${y.toInt()}');
+        parts.add('$d - Year ${y.toInt()}');
       } else if (y != null) {
-        parts.add('$d • Year $y');
+        parts.add('$d - Year $y');
       } else {
         parts.add(d);
       }

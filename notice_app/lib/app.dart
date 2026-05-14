@@ -34,7 +34,7 @@ class _AppState extends ConsumerState<App> {
     final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
-      title: 'Notice App',
+      title: 'Notice Circular',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
@@ -43,10 +43,7 @@ class _AppState extends ConsumerState<App> {
           elevation: 0,
           scrolledUnderElevation: 0,
           centerTitle: false,
-          titleTextStyle: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          titleTextStyle: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         cardTheme: CardThemeData(
           shape: RoundedRectangleBorder(
@@ -54,9 +51,7 @@ class _AppState extends ConsumerState<App> {
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(14),
           ),
