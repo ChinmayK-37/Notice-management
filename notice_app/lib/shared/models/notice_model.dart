@@ -5,7 +5,8 @@ class NoticeModel {
     required this.description,
     required this.department,
     required this.priority,
-    required this.expiryDate,
+    this.expiryDate,
+    this.createdBy,
     required this.readStatus,
     this.notificationId,
     required this.isRead,
@@ -15,23 +16,63 @@ class NoticeModel {
   final String id;
   final String title;
   final String description;
+
+  /// Audience summary from API `targets` (or legacy `department`), e.g. "All students".
   final String department;
   final String priority;
-  final DateTime expiryDate;
+  final DateTime? expiryDate;
+  final String? createdBy;
   final bool readStatus;
   final int? notificationId;
   final bool isRead;
   final bool isAcknowledged;
 
+  static String _audienceFromJson(Map<String, dynamic> json) {
+    final dynamic direct = json['department'];
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+    final dynamic targets = json['targets'];
+    if (targets is! List || targets.isEmpty) {
+      return 'All students';
+    }
+    final parts = <String>[];
+    for (final item in targets) {
+      if (item is! Map<String, dynamic>) {
+        continue;
+      }
+      final d = (item['department'] ?? '').toString().trim();
+      final y = item['year'];
+      if (d.isEmpty) {
+        continue;
+      }
+      if (y is num) {
+        parts.add('$d • Year ${y.toInt()}');
+      } else if (y != null) {
+        parts.add('$d • Year $y');
+      } else {
+        parts.add(d);
+      }
+    }
+    return parts.isEmpty ? 'All students' : parts.join('; ');
+  }
+
   factory NoticeModel.fromJson(Map<String, dynamic> json) {
+    final dynamic rawExpiry = json['expiryDate'];
+    DateTime? expiry;
+    if (rawExpiry != null) {
+      final parsed = DateTime.tryParse(rawExpiry.toString());
+      expiry = parsed;
+    }
+
     return NoticeModel(
       id: (json['id'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
-      department: (json['department'] ?? '').toString(),
+      department: _audienceFromJson(json),
       priority: (json['priority'] ?? 'LOW').toString(),
-      expiryDate: DateTime.tryParse((json['expiryDate'] ?? '').toString()) ??
-          DateTime.now(),
+      expiryDate: expiry,
+      createdBy: json['createdBy']?.toString(),
       readStatus: json['readStatus'] == true,
       notificationId: json['notificationId'] is int
           ? json['notificationId'] as int
@@ -48,7 +89,8 @@ class NoticeModel {
       'description': description,
       'department': department,
       'priority': priority,
-      'expiryDate': expiryDate.toIso8601String(),
+      'expiryDate': expiryDate?.toIso8601String(),
+      'createdBy': createdBy,
       'readStatus': readStatus,
       'notificationId': notificationId,
       'isRead': isRead,

@@ -14,6 +14,7 @@ public class NotificationResponse {
     private Long id;
     private Long noticeId;
     private String message;
+    private String type;
     private boolean isRead;
     private boolean isAcknowledged;
     private LocalDateTime createdAt;

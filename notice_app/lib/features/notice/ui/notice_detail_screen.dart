@@ -215,12 +215,24 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'Department: ${widget.notice.department}',
+              'Audience: ${widget.notice.department}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+            if (widget.notice.createdBy != null &&
+                widget.notice.createdBy!.trim().isNotEmpty) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Posted by: ${widget.notice.createdBy}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
             const SizedBox(height: 6),
             Text(
-              'Expiry: ${DateFormat('dd MMM yyyy').format(widget.notice.expiryDate)}',
+              widget.notice.expiryDate == null
+                  ? 'Expiry: none'
+                  : 'Expiry: ${DateFormat('dd MMM yyyy').format(widget.notice.expiryDate!)}',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
             const SizedBox(height: 8),

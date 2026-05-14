@@ -39,34 +39,87 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
   Map<DateTime, List<NoticeModel>> _groupByExpiryDate(List<NoticeModel> notices) {
     final grouped = <DateTime, List<NoticeModel>>{};
     for (final notice in notices) {
-      final key = _dateOnly(notice.expiryDate);
+      final expiry = notice.expiryDate;
+      if (expiry == null) {
+        continue;
+      }
+      final key = _dateOnly(expiry);
       grouped.putIfAbsent(key, () => <NoticeModel>[]);
       grouped[key]!.add(notice);
     }
     return grouped;
   }
 
+  List<NoticeModel> _withoutExpiry(List<NoticeModel> notices) {
+    return notices.where((n) => n.expiryDate == null).toList();
+  }
+
   bool _isExpired(NoticeModel notice) {
+    final expiry = notice.expiryDate;
+    if (expiry == null) {
+      return false;
+    }
     final today = _dateOnly(DateTime.now());
-    return _dateOnly(notice.expiryDate).isBefore(today);
+    return _dateOnly(expiry).isBefore(today);
+  }
+
+  String _subtitleLine(NoticeModel notice) {
+    final audience = notice.department;
+    final expiry = notice.expiryDate;
+    if (expiry == null) {
+      return '$audience • No expiry date';
+    }
+    return '$audience • ${DateFormat('dd MMM yyyy').format(expiry)}';
   }
 
   @override
   Widget build(BuildContext context) {
     final noticeState = ref.watch(noticeProvider);
-    final grouped = _groupByExpiryDate(noticeState.notices);
+    final notices = noticeState.notices;
+    final grouped = _groupByExpiryDate(notices);
+    final openEnded = _withoutExpiry(notices);
     final selectedNotices = grouped[_selectedDay] ?? <NoticeModel>[];
 
     return Scaffold(
       appBar: AppBar(
         title: const Text('Calendar'),
       ),
-      body: noticeState.isLoading && noticeState.notices.isEmpty
+      body: noticeState.isLoading && notices.isEmpty
           ? const Center(child: CircularProgressIndicator())
-          : noticeState.error != null && noticeState.notices.isEmpty
+          : noticeState.error != null && notices.isEmpty
               ? Center(child: Text(noticeState.error!))
               : Column(
                   children: [
+                    if (openEnded.isNotEmpty)
+                      Material(
+                        color: Theme.of(context)
+                            .colorScheme
+                            .surfaceContainerHighest
+                            .withValues(alpha: 0.6),
+                        child: ExpansionTile(
+                          title: Text(
+                            'No expiry date (${openEnded.length})',
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                          children: openEnded
+                              .map(
+                                (notice) => ListTile(
+                                  dense: true,
+                                  title: Text(notice.title),
+                                  subtitle: Text(notice.department),
+                                  onTap: () {
+                                    Navigator.of(context).push(
+                                      MaterialPageRoute<void>(
+                                        builder: (_) =>
+                                            NoticeDetailScreen(notice: notice),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              )
+                              .toList(),
+                        ),
+                      ),
                     TableCalendar<NoticeModel>(
                       firstDay: DateTime.utc(2020, 1, 1),
                       lastDay: DateTime.utc(2100, 12, 31),
@@ -98,8 +151,12 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                     const Divider(height: 1),
                     Expanded(
                       child: selectedNotices.isEmpty
-                          ? const Center(
-                              child: Text('No notices for selected date.'),
+                          ? Center(
+                              child: Text(
+                                grouped.isEmpty && openEnded.isEmpty
+                                    ? 'No notices to show.'
+                                    : 'No notices for selected date.',
+                              ),
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.all(16),
@@ -149,7 +206,7 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                           ),
                                         ),
                                         subtitle: Text(
-                                          '${notice.department} • ${DateFormat('dd MMM yyyy').format(notice.expiryDate)}',
+                                          _subtitleLine(notice),
                                           style: TextStyle(
                                             color: expired
                                                 ? Colors.grey.shade700

@@ -139,14 +139,14 @@ class _NoticeCard extends StatelessWidget {
   }
 
   String _expiryText() {
+    final expiry = notice.expiryDate;
+    if (expiry == null) {
+      return 'No expiry';
+    }
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
-    final expiry = DateTime(
-      notice.expiryDate.year,
-      notice.expiryDate.month,
-      notice.expiryDate.day,
-    );
-    final daysLeft = expiry.difference(today).inDays;
+    final expiryDay = DateTime(expiry.year, expiry.month, expiry.day);
+    final daysLeft = expiryDay.difference(today).inDays;
 
     if (daysLeft <= 0) {
       return 'Expires today';
@@ -160,7 +160,10 @@ class _NoticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final priorityColor = _priorityColor(context);
-    final expiryLabel = DateFormat('dd MMM yyyy').format(notice.expiryDate);
+    final expiry = notice.expiryDate;
+    final String expiryChipText = expiry == null
+        ? 'No expiry date'
+        : '${_expiryText()} • ${DateFormat('dd MMM yyyy').format(expiry)}';
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 220),
@@ -221,7 +224,7 @@ class _NoticeCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '${_expiryText()} • $expiryLabel',
+                      expiryChipText,
                       style: Theme.of(context).textTheme.labelMedium?.copyWith(
                             color: Theme.of(context).colorScheme.onSurfaceVariant,
                             fontWeight: FontWeight.w600,
@@ -232,7 +235,7 @@ class _NoticeCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Dept: ${notice.department}',
+                'Audience: ${notice.department}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),

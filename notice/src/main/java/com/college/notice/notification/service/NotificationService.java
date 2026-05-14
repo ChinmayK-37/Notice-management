@@ -133,6 +133,7 @@ public class NotificationService {
                 .id(notification.getId())
                 .noticeId(notification.getNotice().getId())
                 .message(notification.getMessage())
+                .type(notification.getType())
                 .isRead(notification.isRead())
                 .isAcknowledged(notification.isAcknowledged())
                 .createdAt(notification.getCreatedAt())
