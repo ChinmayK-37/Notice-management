@@ -1,9 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:notice_app/core/services/api_service.dart';
 import 'package:notice_app/core/services/token_service.dart';
+import 'package:notice_app/core/utils/jwt_claims.dart';
 import 'package:notice_app/features/auth/data/auth_service.dart';
 
-final apiServiceProvider = Provider<ApiService>((ref) => ApiService());
+final apiServiceProvider = Provider<ApiService>(
+  (ref) => ApiService(
+    tokenService: ref.watch(tokenServiceProvider),
+  ),
+);
 
 final tokenServiceProvider = Provider<TokenService>((ref) => TokenService());
 
@@ -44,9 +51,40 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AuthState> {
-  AuthNotifier(this._authService) : super(const AuthState());
+  AuthNotifier(this._authService, this._tokenService)
+      : super(const AuthState(isLoading: true)) {
+    unawaited(restoreSession());
+  }
 
   final AuthService _authService;
+  final TokenService _tokenService;
+
+  Future<void> restoreSession() async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      final String? token = await _tokenService.getAccessToken();
+      if (token == null || token.trim().isEmpty) {
+        state = const AuthState(isLoading: false);
+        return;
+      }
+      if (!JwtClaims.isValidAccessToken(token)) {
+        await _tokenService.clearToken();
+        state = const AuthState(isLoading: false);
+        return;
+      }
+      state = AuthState(
+        isLoading: false,
+        isLoggedIn: true,
+        isAdmin: JwtClaims.isAdmin(token),
+      );
+    } on Object {
+      await _tokenService.clearToken();
+      state = const AuthState(
+        isLoading: false,
+        error: 'Session could not be restored.',
+      );
+    }
+  }
 
   Future<void> login({
     required String email,
@@ -56,16 +94,28 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     try {
       await _authService.login(email, password);
-      state = state.copyWith(
-        isLoading: false,
-        isLoggedIn: true,
-        isAdmin: email.toLowerCase().contains('admin'),
-        clearError: true,
-      );
+      final String? token = await _tokenService.getAccessToken();
+      if (token != null && JwtClaims.isValidAccessToken(token)) {
+        state = state.copyWith(
+          isLoading: false,
+          isLoggedIn: true,
+          isAdmin: JwtClaims.isAdmin(token),
+          clearError: true,
+        );
+      } else {
+        await _tokenService.clearToken();
+        state = state.copyWith(
+          isLoading: false,
+          isLoggedIn: false,
+          isAdmin: false,
+          error: 'Login succeeded but the token was invalid.',
+        );
+      }
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
         isLoggedIn: false,
+        isAdmin: false,
         error: error.toString().replaceFirst('Exception: ', ''),
       );
     }
@@ -93,16 +143,21 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> logout() async {
     state = state.copyWith(isLoading: true, clearError: true);
-    await _authService.logout();
-    state = state.copyWith(
-      isLoading: false,
-      isLoggedIn: false,
-      isAdmin: false,
-      clearError: true,
-    );
+    try {
+      await _authService.logout();
+    } finally {
+      state = const AuthState(
+        isLoading: false,
+        isLoggedIn: false,
+        isAdmin: false,
+      );
+    }
   }
 }
 
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(
-  (ref) => AuthNotifier(ref.read(authServiceProvider)),
+  (ref) => AuthNotifier(
+    ref.read(authServiceProvider),
+    ref.read(tokenServiceProvider),
+  ),
 );
