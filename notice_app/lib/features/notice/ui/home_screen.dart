@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:notice_app/features/auth/providers/auth_provider.dart';
+import 'package:notice_app/features/notice/data/activity_item_model.dart';
 import 'package:notice_app/features/notice/providers/notice_provider.dart';
+import 'package:notice_app/features/notice/ui/create_notice_screen.dart';
 import 'package:notice_app/features/notice/ui/notice_detail_screen.dart';
 import 'package:notice_app/features/notification/providers/notification_provider.dart';
 import 'package:notice_app/shared/models/notice_model.dart';
@@ -18,6 +20,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   String _priorityFilter = 'ALL';
+  List<ActivityItemModel> _activity = const <ActivityItemModel>[];
+  bool _activityLoading = false;
 
   @override
   void initState() {
@@ -35,10 +39,35 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 
   Future<void> _refresh() async {
+    final isAdmin = ref.read(authProvider).isAdmin;
     await Future.wait<void>([
       ref.read(noticeProvider.notifier).fetchNotices(),
       ref.read(notificationProvider.notifier).fetchNotifications(),
+      if (isAdmin) _loadActivity(),
     ]);
+  }
+
+  Future<void> _loadActivity() async {
+    if (_activityLoading) {
+      return;
+    }
+    setState(() => _activityLoading = true);
+    try {
+      final activity = await ref
+          .read(noticeServiceProvider)
+          .getRecentActivity();
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _activity = activity;
+        _activityLoading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _activityLoading = false);
+      }
+    }
   }
 
   List<NoticeModel> _filtered(List<NoticeModel> notices) {
@@ -64,11 +93,23 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Future<void> _openCreateNotice() async {
+    final created = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => const CreateNoticeScreen()),
+    );
+    if (created == true) {
+      await _refresh();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final noticeState = ref.watch(noticeProvider);
     final notificationState = ref.watch(notificationProvider);
     final isAdmin = ref.watch(authProvider).isAdmin;
+    if (isAdmin && _activity.isEmpty && !_activityLoading) {
+      Future<void>.microtask(_loadActivity);
+    }
     final notices = noticeState.notices;
     final displayed = _filtered(notices);
     final highPriority = notices
@@ -79,9 +120,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final unreadCount = notificationState.notifications
         .where((n) => !n.isRead)
         .length;
-    final acknowledgedCount = notificationState.notifications
-        .where((n) => n.isAcknowledged)
-        .length;
+    final totalViews = notices.fold<int>(
+      0,
+      (sum, notice) => sum + notice.viewCount,
+    );
+    final totalReplies = notices.fold<int>(
+      0,
+      (sum, notice) => sum + notice.replyCount,
+    );
     final categories = notices.map(NoticeVisuals.categoryFor).toSet().toList()
       ..sort();
 
@@ -105,7 +151,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         _DashboardHeader(
                           isAdmin: isAdmin,
                           totalNotices: notices.length,
-                          unreadCount: unreadCount,
+                          unreadCount: isAdmin ? totalReplies : unreadCount,
                           dueSoonCount: notices
                               .where(NoticeVisuals.isDueSoon)
                               .length,
@@ -129,15 +175,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                     color: Colors.teal.shade700,
                                   ),
                                   _StatData(
-                                    label: 'Unread',
-                                    value: '$unreadCount',
-                                    icon: Icons.mark_email_unread_outlined,
+                                    label: 'Views',
+                                    value: '$totalViews',
+                                    icon: Icons.visibility_outlined,
                                     color: Colors.orange.shade700,
                                   ),
                                   _StatData(
-                                    label: 'Acknowledged',
-                                    value: '$acknowledgedCount',
-                                    icon: Icons.task_alt_outlined,
+                                    label: 'Replies',
+                                    value: '$totalReplies',
+                                    icon: Icons.forum_outlined,
                                     color: Colors.green.shade700,
                                   ),
                                 ]
@@ -217,6 +263,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                             const SizedBox(height: 8),
                           ],
+                          if (isAdmin && _activity.isNotEmpty) ...[
+                            const _SectionHeader(
+                              title: 'Recent activity',
+                              actionLabel: 'Live snapshot',
+                            ),
+                            const SizedBox(height: 10),
+                            _ActivityFeed(items: _activity),
+                            const SizedBox(height: 18),
+                          ],
                           _SearchAndFilters(
                             controller: _searchController,
                             selectedPriority: _priorityFilter,
@@ -257,6 +312,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           ],
         ),
       ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: _openCreateNotice,
+              icon: const Icon(Icons.add),
+              label: const Text('Create Notice'),
+            )
+          : null,
     );
   }
 }
@@ -331,8 +393,10 @@ class _DashboardHeader extends StatelessWidget {
                 label: '$totalNotices notices',
               ),
               _HeaderChip(
-                icon: Icons.mark_email_unread_outlined,
-                label: '$unreadCount unread',
+                icon: isAdmin
+                    ? Icons.forum_outlined
+                    : Icons.mark_email_unread_outlined,
+                label: isAdmin ? '$unreadCount replies' : '$unreadCount unread',
               ),
               _HeaderChip(
                 icon: Icons.alarm_outlined,
@@ -596,6 +660,101 @@ class _HorizontalNoticeRail extends StatelessWidget {
   }
 }
 
+class _ActivityFeed extends StatelessWidget {
+  const _ActivityFeed({required this.items});
+
+  final List<ActivityItemModel> items;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 0,
+      color: Theme.of(
+        context,
+      ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            for (final item in items.take(6))
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    CircleAvatar(
+                      radius: 17,
+                      backgroundColor: _activityColor(
+                        context,
+                        item.type,
+                      ).withValues(alpha: 0.12),
+                      foregroundColor: _activityColor(context, item.type),
+                      child: Icon(_activityIcon(item.type), size: 18),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            item.title,
+                            style: Theme.of(context).textTheme.labelLarge
+                                ?.copyWith(fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            item.message,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      DateFormat('dd MMM').format(item.createdAt),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  IconData _activityIcon(String type) {
+    switch (type.toUpperCase()) {
+      case 'REPLY':
+        return Icons.forum_outlined;
+      case 'ACKNOWLEDGEMENT':
+        return Icons.task_alt_outlined;
+      default:
+        return Icons.campaign_outlined;
+    }
+  }
+
+  Color _activityColor(BuildContext context, String type) {
+    switch (type.toUpperCase()) {
+      case 'REPLY':
+        return Colors.indigo.shade700;
+      case 'ACKNOWLEDGEMENT':
+        return Colors.green.shade700;
+      default:
+        return Theme.of(context).colorScheme.primary;
+    }
+  }
+}
+
 class _SearchAndFilters extends StatelessWidget {
   const _SearchAndFilters({
     required this.controller,
@@ -710,6 +869,12 @@ class _NoticeCard extends StatelessWidget {
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
+                          if (notice.pinned)
+                            _MetaChip(
+                              icon: Icons.push_pin_outlined,
+                              label: 'PINNED',
+                              color: Colors.indigo.shade700,
+                            ),
                           _MetaChip(
                             icon: NoticeVisuals.priorityIcon(notice.priority),
                             label: notice.priority.toUpperCase(),

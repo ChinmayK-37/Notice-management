@@ -27,16 +27,9 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
     final analytics = state.analytics;
     final scheme = Theme.of(context).colorScheme;
 
-    final readCount = analytics == null
-        ? 0
-        : ((analytics.totalUsers * analytics.readPercentage) / 100).round();
-    final ackCount = analytics == null
-        ? 0
-        : ((analytics.totalUsers * analytics.acknowledgedPercentage) / 100)
-              .round();
-    final unreadCount = analytics == null
-        ? 0
-        : analytics.totalUsers - readCount;
+    final readCount = analytics?.readCount ?? 0;
+    final ackCount = analytics?.acknowledgedCount ?? 0;
+    final unreadCount = analytics?.unreadCount ?? 0;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Engagement analytics')),
@@ -135,6 +128,18 @@ class _AnalyticsScreenState extends ConsumerState<AnalyticsScreen> {
                         value: '${analytics.totalUsers - ackCount}',
                         icon: Icons.pending_actions_outlined,
                         color: Colors.blueGrey.shade700,
+                      ),
+                      _MetricData(
+                        label: 'Views',
+                        value: '${analytics.viewCount}',
+                        icon: Icons.remove_red_eye_outlined,
+                        color: Colors.indigo.shade700,
+                      ),
+                      _MetricData(
+                        label: 'Replies',
+                        value: '${analytics.replyCount}',
+                        icon: Icons.forum_outlined,
+                        color: Colors.deepPurple.shade700,
                       ),
                     ],
                   ),

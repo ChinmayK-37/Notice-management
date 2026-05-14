@@ -31,6 +31,9 @@ class NoticeVisuals {
   }
 
   static String categoryFor(NoticeModel notice) {
+    if (notice.category.trim().isNotEmpty) {
+      return _titleCase(notice.category.trim());
+    }
     final text = '${notice.title} ${notice.description}'.toLowerCase();
     if (text.contains('exam') || text.contains('hall ticket')) {
       return 'Exam';
@@ -54,6 +57,14 @@ class NoticeVisuals {
       return 'Event';
     }
     return 'Notice';
+  }
+
+  static String _titleCase(String value) {
+    return value
+        .split(RegExp(r'[_\s-]+'))
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0].toUpperCase() + part.substring(1).toLowerCase())
+        .join(' ');
   }
 
   static IconData categoryIcon(String category) {

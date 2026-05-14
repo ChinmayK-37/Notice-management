@@ -3,8 +3,13 @@ class NoticeModel {
     required this.id,
     required this.title,
     required this.description,
+    required this.category,
     required this.department,
     required this.priority,
+    required this.pinned,
+    required this.viewCount,
+    required this.replyCount,
+    this.attachmentFileName,
     this.expiryDate,
     this.createdBy,
     required this.readStatus,
@@ -16,10 +21,15 @@ class NoticeModel {
   final String id;
   final String title;
   final String description;
+  final String category;
 
   /// Audience summary from API `targets` (or legacy `department`), e.g. "All students".
   final String department;
   final String priority;
+  final bool pinned;
+  final int viewCount;
+  final int replyCount;
+  final String? attachmentFileName;
   final DateTime? expiryDate;
   final String? createdBy;
   final bool readStatus;
@@ -69,8 +79,13 @@ class NoticeModel {
       id: (json['id'] ?? '').toString(),
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
+      category: (json['category'] ?? '').toString(),
       department: _audienceFromJson(json),
       priority: (json['priority'] ?? 'LOW').toString(),
+      pinned: json['pinned'] == true || json['isPinned'] == true,
+      viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
+      replyCount: (json['replyCount'] as num?)?.toInt() ?? 0,
+      attachmentFileName: json['attachmentFileName']?.toString(),
       expiryDate: expiry,
       createdBy: json['createdBy']?.toString(),
       readStatus: json['readStatus'] == true,
@@ -87,8 +102,13 @@ class NoticeModel {
       'id': id,
       'title': title,
       'description': description,
+      'category': category,
       'department': department,
       'priority': priority,
+      'pinned': pinned,
+      'viewCount': viewCount,
+      'replyCount': replyCount,
+      'attachmentFileName': attachmentFileName,
       'expiryDate': expiryDate?.toIso8601String(),
       'createdBy': createdBy,
       'readStatus': readStatus,

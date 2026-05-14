@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:notice_app/features/analytics/ui/analytics_screen.dart';
 import 'package:notice_app/features/auth/providers/auth_provider.dart';
+import 'package:notice_app/features/notice/data/notice_reply_model.dart';
 import 'package:notice_app/features/notice/providers/notice_provider.dart';
 import 'package:notice_app/features/notification/providers/notification_provider.dart';
 import 'package:notice_app/shared/models/notice_model.dart';
@@ -18,22 +19,33 @@ class NoticeDetailScreen extends ConsumerStatefulWidget {
 }
 
 class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
+  late NoticeModel _notice;
   late bool _isRead;
   late bool _isAcknowledged;
+  List<NoticeReplyModel> _replies = const <NoticeReplyModel>[];
+  bool _repliesLoading = false;
   bool _isMarkReadLoading = false;
   bool _isAcknowledgeLoading = false;
 
-  bool get _hasNotification => widget.notice.notificationId != null;
+  bool get _hasNotification => _notice.notificationId != null;
 
   @override
   void initState() {
     super.initState();
-    _isRead = widget.notice.isRead || widget.notice.readStatus;
-    _isAcknowledged = widget.notice.isAcknowledged;
+    _notice = widget.notice;
+    _isRead = _notice.isRead || _notice.readStatus;
+    _isAcknowledged = _notice.isAcknowledged;
+    Future<void>.microtask(() async {
+      final isAdmin = ref.read(authProvider).isAdmin;
+      if (!isAdmin) {
+        await _recordView();
+      }
+      await _loadReplies();
+    });
   }
 
   String _summaryText() {
-    final lines = widget.notice.description
+    final lines = _notice.description
         .split('\n')
         .map((line) => line.trim())
         .where((line) => line.isNotEmpty)
@@ -46,8 +58,45 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
     return lines.take(3).join(' ');
   }
 
+  Future<void> _recordView() async {
+    try {
+      final updated = await ref
+          .read(noticeServiceProvider)
+          .recordView(_notice.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _notice = updated);
+    } catch (_) {
+      // View tracking should never block reading the notice.
+    }
+  }
+
+  Future<void> _loadReplies() async {
+    if (_repliesLoading) {
+      return;
+    }
+    setState(() => _repliesLoading = true);
+    try {
+      final replies = await ref
+          .read(noticeServiceProvider)
+          .getReplies(_notice.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _replies = replies;
+        _repliesLoading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _repliesLoading = false);
+      }
+    }
+  }
+
   Future<void> _markAsRead() async {
-    final notificationId = widget.notice.notificationId;
+    final notificationId = _notice.notificationId;
     if (notificationId == null) {
       _showMessage('No notification available for this notice');
       return;
@@ -86,7 +135,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
   }
 
   Future<void> _acknowledge() async {
-    final notificationId = widget.notice.notificationId;
+    final notificationId = _notice.notificationId;
     if (notificationId == null) {
       _showMessage('No notification available for this notice');
       return;
@@ -133,15 +182,58 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _showReplyDialog() async {
+    final controller = TextEditingController();
+    final message = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Reply to notice'),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          minLines: 3,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            hintText: 'Write a short reply or confirmation',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(controller.text.trim()),
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (message == null || message.isEmpty) {
+      return;
+    }
+    try {
+      await ref
+          .read(noticeServiceProvider)
+          .addReply(noticeId: _notice.id, message: message);
+      _showMessage('Reply submitted');
+      await _loadReplies();
+      await ref.read(noticeProvider.notifier).fetchNotices();
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
-    final category = NoticeVisuals.categoryFor(widget.notice);
+    final category = NoticeVisuals.categoryFor(_notice);
     final priorityColor = NoticeVisuals.priorityColor(
       context,
-      widget.notice.priority,
+      _notice.priority,
     );
-    final expiry = widget.notice.expiryDate;
+    final expiry = _notice.expiryDate;
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -171,10 +263,8 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                         runSpacing: 8,
                         children: [
                           _DetailChip(
-                            icon: NoticeVisuals.priorityIcon(
-                              widget.notice.priority,
-                            ),
-                            label: widget.notice.priority.toUpperCase(),
+                            icon: NoticeVisuals.priorityIcon(_notice.priority),
+                            label: _notice.priority.toUpperCase(),
                             color: priorityColor,
                           ),
                           _DetailChip(
@@ -185,7 +275,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                           _DetailChip(
                             icon: Icons.schedule_outlined,
                             label: NoticeVisuals.deadlineLabel(expiry),
-                            color: NoticeVisuals.isDueSoon(widget.notice)
+                            color: NoticeVisuals.isDueSoon(_notice)
                                 ? Colors.deepOrange.shade700
                                 : scheme.onSurfaceVariant,
                           ),
@@ -193,7 +283,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        widget.notice.title,
+                        _notice.title,
                         style: Theme.of(context).textTheme.headlineSmall
                             ?.copyWith(
                               fontWeight: FontWeight.w900,
@@ -217,7 +307,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                     _InfoItem(
                       icon: Icons.groups_outlined,
                       label: 'Audience',
-                      value: widget.notice.department,
+                      value: _notice.department,
                     ),
                     _InfoItem(
                       icon: Icons.event_outlined,
@@ -226,25 +316,37 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                           ? 'No expiry date'
                           : DateFormat('dd MMM yyyy').format(expiry),
                     ),
-                    _InfoItem(
-                      icon: _isAcknowledged
-                          ? Icons.verified_outlined
-                          : _isRead
-                          ? Icons.mark_email_read_outlined
-                          : Icons.mark_email_unread_outlined,
-                      label: 'Your status',
-                      value: _isAcknowledged
-                          ? 'Acknowledged'
-                          : _isRead
-                          ? 'Read'
-                          : 'Unread',
-                    ),
+                    if (authState.isAdmin) ...[
+                      _InfoItem(
+                        icon: Icons.visibility_outlined,
+                        label: 'Student views',
+                        value: '${_notice.viewCount}',
+                      ),
+                      _InfoItem(
+                        icon: Icons.forum_outlined,
+                        label: 'Replies',
+                        value: '${_notice.replyCount}',
+                      ),
+                    ] else
+                      _InfoItem(
+                        icon: _isAcknowledged
+                            ? Icons.verified_outlined
+                            : _isRead
+                            ? Icons.mark_email_read_outlined
+                            : Icons.mark_email_unread_outlined,
+                        label: 'Your status',
+                        value: _isAcknowledged
+                            ? 'Acknowledged'
+                            : _isRead
+                            ? 'Read'
+                            : 'Unread',
+                      ),
                     _InfoItem(
                       icon: Icons.person_outline,
                       label: 'Posted by',
-                      value: (widget.notice.createdBy ?? '').trim().isEmpty
+                      value: (_notice.createdBy ?? '').trim().isEmpty
                           ? 'Admin'
-                          : widget.notice.createdBy!,
+                          : _notice.createdBy!,
                     ),
                   ],
                 ),
@@ -264,7 +366,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                         ),
                         const SizedBox(height: 10),
                         Text(
-                          widget.notice.description,
+                          _notice.description,
                           style: Theme.of(
                             context,
                           ).textTheme.bodyLarge?.copyWith(height: 1.45),
@@ -285,7 +387,10 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'Attachments ready - files can be linked with this notice when enabled.',
+                                  _notice.attachmentFileName == null ||
+                                          _notice.attachmentFileName!.isEmpty
+                                      ? 'Attachments ready - files can be linked with this notice when enabled.'
+                                      : _notice.attachmentFileName!,
                                   style: Theme.of(context).textTheme.bodySmall
                                       ?.copyWith(
                                         color: scheme.onSurfaceVariant,
@@ -300,13 +405,19 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                   ),
                 ),
                 const SizedBox(height: 14),
+                _RepliesSection(
+                  isAdmin: authState.isAdmin,
+                  replies: _replies,
+                  loading: _repliesLoading,
+                  onRefresh: _loadReplies,
+                ),
+                const SizedBox(height: 14),
                 if (authState.isAdmin)
                   FilledButton.icon(
                     onPressed: () {
                       Navigator.of(context).push(
                         MaterialPageRoute<void>(
-                          builder: (_) =>
-                              AnalyticsScreen(noticeId: widget.notice.id),
+                          builder: (_) => AnalyticsScreen(noticeId: _notice.id),
                         ),
                       );
                     },
@@ -351,6 +462,12 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                     label: Text(
                       _isAcknowledged ? 'Acknowledged' : 'Acknowledge notice',
                     ),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _showReplyDialog,
+                    icon: const Icon(Icons.reply_outlined),
+                    label: const Text('Reply'),
                   ),
                 ],
               ],
@@ -477,6 +594,113 @@ class _InfoCard extends StatelessWidget {
                 ],
               ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RepliesSection extends StatelessWidget {
+  const _RepliesSection({
+    required this.isAdmin,
+    required this.replies,
+    required this.loading,
+    required this.onRefresh,
+  });
+
+  final bool isAdmin;
+  final List<NoticeReplyModel> replies;
+  final bool loading;
+  final Future<void> Function() onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Card(
+      elevation: 0,
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.45),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    isAdmin ? 'Student replies' : 'Your replies',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Refresh replies',
+                  onPressed: loading ? null : onRefresh,
+                  icon: const Icon(Icons.refresh),
+                ),
+              ],
+            ),
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 16),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (replies.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Text(
+                  isAdmin
+                      ? 'No student replies for this notice yet.'
+                      : 'You have not replied to this notice yet.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              )
+            else
+              ...replies.map(
+                (reply) => Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      CircleAvatar(
+                        radius: 17,
+                        backgroundColor: scheme.primary.withValues(alpha: 0.12),
+                        foregroundColor: scheme.primary,
+                        child: const Icon(Icons.forum_outlined, size: 18),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              isAdmin ? reply.userName : 'You',
+                              style: Theme.of(context).textTheme.labelLarge
+                                  ?.copyWith(fontWeight: FontWeight.w800),
+                            ),
+                            Text(
+                              reply.message,
+                              style: Theme.of(context).textTheme.bodyMedium,
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              DateFormat(
+                                'dd MMM yyyy, hh:mm a',
+                              ).format(reply.createdAt),
+                              style: Theme.of(context).textTheme.labelSmall
+                                  ?.copyWith(color: scheme.onSurfaceVariant),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),

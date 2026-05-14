@@ -128,6 +128,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
+    final isAdmin = _user?.role.toUpperCase() == 'ADMIN';
 
     return Scaffold(
       appBar: AppBar(
@@ -192,27 +193,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                   prefixIcon: Icon(Icons.apartment_outlined),
                                 ),
                               ),
-                              const SizedBox(height: 14),
-                              Text(
-                                'Academic year',
-                                style: Theme.of(context).textTheme.labelLarge
-                                    ?.copyWith(fontWeight: FontWeight.w800),
-                              ),
-                              const SizedBox(height: 8),
-                              Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: <Widget>[
-                                  for (final y in <int>[1, 2, 3, 4])
-                                    ChoiceChip(
-                                      label: Text('Year $y'),
-                                      selected: _year == y,
-                                      onSelected: _saving
-                                          ? null
-                                          : (_) => setState(() => _year = y),
-                                    ),
-                                ],
-                              ),
+                              if (!isAdmin) ...[
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Academic year',
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: <Widget>[
+                                    for (final y in <int>[1, 2, 3, 4])
+                                      ChoiceChip(
+                                        label: Text('Year $y'),
+                                        selected: _year == y,
+                                        onSelected: _saving
+                                            ? null
+                                            : (_) => setState(() => _year = y),
+                                      ),
+                                  ],
+                                ),
+                              ],
                               const SizedBox(height: 18),
                               FilledButton.icon(
                                 onPressed: _saving ? null : _save,
@@ -324,10 +327,11 @@ class _ProfileHeader extends StatelessWidget {
                 icon: Icons.apartment_outlined,
                 label: user.department,
               ),
-              _ProfileChip(
-                icon: Icons.timeline_outlined,
-                label: 'Year ${user.year}',
-              ),
+              if (!isAdmin)
+                _ProfileChip(
+                  icon: Icons.timeline_outlined,
+                  label: 'Year ${user.year}',
+                ),
             ],
           ),
         ],
