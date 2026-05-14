@@ -5,6 +5,7 @@ import 'package:notice_app/core/services/api_service.dart';
 import 'package:notice_app/core/services/token_service.dart';
 import 'package:notice_app/core/utils/jwt_claims.dart';
 import 'package:notice_app/features/auth/data/auth_service.dart';
+import 'package:notice_app/features/auth/data/profile_service.dart';
 
 final apiServiceProvider = Provider<ApiService>(
   (ref) => ApiService(
@@ -18,6 +19,12 @@ final authServiceProvider = Provider<AuthService>(
   (ref) => AuthService(
     apiService: ref.read(apiServiceProvider),
     tokenService: ref.read(tokenServiceProvider),
+  ),
+);
+
+final profileServiceProvider = Provider<ProfileService>(
+  (ref) => ProfileService(
+    apiService: ref.read(apiServiceProvider),
   ),
 );
 
@@ -122,20 +129,44 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   Future<void> register({
+    required String name,
     required String email,
     required String password,
+    required String department,
+    required int year,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
     try {
-      await _authService.register(email: email, password: password);
-      state = state.copyWith(
-        isLoading: false,
-        clearError: true,
+      await _authService.register(
+        name: name,
+        email: email,
+        password: password,
+        department: department,
+        year: year,
       );
+      final String? token = await _tokenService.getAccessToken();
+      if (token != null && JwtClaims.isValidAccessToken(token)) {
+        state = state.copyWith(
+          isLoading: false,
+          isLoggedIn: true,
+          isAdmin: JwtClaims.isAdmin(token),
+          clearError: true,
+        );
+      } else {
+        await _tokenService.clearToken();
+        state = state.copyWith(
+          isLoading: false,
+          isLoggedIn: false,
+          isAdmin: false,
+          error: 'Registration succeeded but the token was invalid.',
+        );
+      }
     } catch (error) {
       state = state.copyWith(
         isLoading: false,
+        isLoggedIn: false,
+        isAdmin: false,
         error: error.toString().replaceFirst('Exception: ', ''),
       );
     }

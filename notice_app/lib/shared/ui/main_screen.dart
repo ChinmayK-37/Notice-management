@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:notice_app/features/auth/ui/profile_screen.dart';
 import 'package:notice_app/features/calendar/ui/calendar_screen.dart';
 import 'package:notice_app/features/notice/ui/home_screen.dart';
 import 'package:notice_app/features/notification/ui/notification_screen.dart';
@@ -17,7 +18,7 @@ class _MainScreenState extends State<MainScreen> {
     HomeScreen(),
     CalendarScreen(),
     NotificationScreen(),
-    _ProfilePlaceholderScreen(),
+    ProfileScreen(),
   ];
 
   @override
@@ -57,19 +58,6 @@ class _MainScreenState extends State<MainScreen> {
             label: 'Profile',
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _ProfilePlaceholderScreen extends StatelessWidget {
-  const _ProfilePlaceholderScreen();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text('Profile coming soon'),
       ),
     );
   }

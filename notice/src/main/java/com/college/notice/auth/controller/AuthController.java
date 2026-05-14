@@ -3,12 +3,16 @@ package com.college.notice.auth.controller;
 import com.college.notice.auth.dto.AuthResponse;
 import com.college.notice.auth.dto.LoginRequest;
 import com.college.notice.auth.dto.RegisterRequest;
+import com.college.notice.auth.dto.UpdateProfileRequest;
+import com.college.notice.auth.dto.UserResponse;
 import com.college.notice.auth.service.AuthService;
 import com.college.notice.shared.util.ApiResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +44,30 @@ public class AuthController {
                         .success(true)
                         .message("Login successful")
                         .data(response)
+                        .build()
+        );
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<ApiResponse<UserResponse>> me() {
+        UserResponse data = authService.getProfile();
+        return ResponseEntity.ok(
+                ApiResponse.<UserResponse>builder()
+                        .success(true)
+                        .message("Profile fetched successfully")
+                        .data(data)
+                        .build()
+        );
+    }
+
+    @PutMapping("/profile")
+    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(@Valid @RequestBody UpdateProfileRequest request) {
+        UserResponse data = authService.updateProfile(request);
+        return ResponseEntity.ok(
+                ApiResponse.<UserResponse>builder()
+                        .success(true)
+                        .message("Profile updated successfully")
+                        .data(data)
                         .build()
         );
     }

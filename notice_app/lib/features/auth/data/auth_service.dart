@@ -11,6 +11,25 @@ class AuthService {
   final ApiService apiService;
   final TokenService tokenService;
 
+  Future<void> _persistTokensFromEnvelope(dynamic responseData) async {
+    if (responseData is! Map<String, dynamic>) {
+      throw Exception('Invalid auth response.');
+    }
+    final dynamic authData = responseData['data'];
+    if (authData is! Map<String, dynamic>) {
+      throw Exception('Invalid auth response: missing data object.');
+    }
+    final String? accessToken = authData['accessToken'] as String?;
+    final String? refreshToken = authData['refreshToken'] as String?;
+    if (accessToken == null || refreshToken == null) {
+      throw Exception('Token is missing in auth response.');
+    }
+    await tokenService.saveTokens(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
+  }
+
   Future<void> login(String email, String password) async {
     try {
       final response = await apiService.post(
@@ -20,45 +39,31 @@ class AuthService {
           'password': password,
         },
       );
-
-      final dynamic responseData = response.data;
-      if (responseData is! Map<String, dynamic>) {
-        throw Exception('Invalid login response.');
-      }
-
-      final dynamic authData = responseData['data'];
-      if (authData is! Map<String, dynamic>) {
-        throw Exception('Invalid login response: missing data object.');
-      }
-
-      final String? accessToken = authData['accessToken'] as String?;
-      final String? refreshToken = authData['refreshToken'] as String?;
-
-      if (accessToken == null || refreshToken == null) {
-        throw Exception('Token is missing in login response.');
-      }
-
-      await tokenService.saveTokens(
-        accessToken: accessToken,
-        refreshToken: refreshToken,
-      );
+      await _persistTokensFromEnvelope(response.data);
     } catch (error) {
       throw Exception(ErrorHandler.getMessage(error));
     }
   }
 
   Future<void> register({
+    required String name,
     required String email,
     required String password,
+    required String department,
+    required int year,
   }) async {
     try {
-      await apiService.post(
+      final response = await apiService.post(
         '/auth/register',
         data: <String, dynamic>{
+          'name': name,
           'email': email,
           'password': password,
+          'department': department,
+          'year': year,
         },
       );
+      await _persistTokensFromEnvelope(response.data);
     } catch (error) {
       throw Exception(ErrorHandler.getMessage(error));
     }
