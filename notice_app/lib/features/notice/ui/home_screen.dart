@@ -13,6 +13,14 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   void initState() {
     super.initState();
@@ -28,6 +36,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notices'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: TextField(
+              controller: _searchController,
+              onChanged: (_) => setState(() {}),
+              textInputAction: TextInputAction.search,
+              decoration: InputDecoration(
+                hintText: 'Search notices…',
+                isDense: true,
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+                prefixIcon: const Icon(Icons.search, size: 22),
+                suffixIcon: _searchController.text.isEmpty
+                    ? null
+                    : IconButton(
+                        tooltip: 'Clear',
+                        icon: const Icon(Icons.clear, size: 20),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() {});
+                        },
+                      ),
+              ),
+            ),
+          ),
+        ),
         actions: [
           IconButton(
             tooltip: 'Calendar',
@@ -77,11 +117,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               );
             }
 
+            final String q = _searchController.text.trim().toLowerCase();
+            final List<NoticeModel> displayed = q.isEmpty
+                ? noticeState.notices
+                : noticeState.notices
+                    .where(
+                      (NoticeModel n) =>
+                          n.title.toLowerCase().contains(q) ||
+                          n.description.toLowerCase().contains(q),
+                    )
+                    .toList();
+
+            if (displayed.isEmpty) {
+              return ListView(
+                padding: const EdgeInsets.all(16),
+                children: const [
+                  SizedBox(height: 80),
+                  Center(child: Text('No matches for your search.')),
+                ],
+              );
+            }
+
             return ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: noticeState.notices.length,
+              itemCount: displayed.length,
               itemBuilder: (context, index) {
-                final notice = noticeState.notices[index];
+                final notice = displayed[index];
 
                 return TweenAnimationBuilder<double>(
                   tween: Tween<double>(begin: 0, end: 1),

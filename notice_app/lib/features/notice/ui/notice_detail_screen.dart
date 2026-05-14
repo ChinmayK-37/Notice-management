@@ -178,7 +178,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
       appBar: AppBar(
         title: const Text('Notice Detail'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,7 +255,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                   child: const Text('View Analytics'),
                 ),
               ),
-            const Spacer(),
+            const SizedBox(height: 32),
             if (!_hasNotification)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
