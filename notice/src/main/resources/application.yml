@@ -1,0 +1,27 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: notice
+  datasource:
+    url: jdbc:postgresql://localhost:5432/college_notice
+    username: postgres
+    password: root
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+jwt:
+  secret: very-long-secret-key-at-least-32-characters-strong
+  access-token-expiration-ms: 3600000
+  refresh-token-expiration-ms: 86400000
+management:
+  endpoints:
+    web:
+      exposure:
+        include: mappings
