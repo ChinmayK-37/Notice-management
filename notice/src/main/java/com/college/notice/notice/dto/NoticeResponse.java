@@ -17,7 +17,11 @@ public class NoticeResponse {
     private Long id;
     private String title;
     private String description;
+    private String category;
     private Priority priority;
+    private boolean pinned;
+    private Long viewCount;
+    private Long replyCount;
     private LocalDateTime createdAt;
     private LocalDateTime expiryDate;
     private String createdBy;

@@ -19,13 +19,24 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
                     or (t.department = :department and t.year = :year)
                   )
               and (n.expiryDate is null or n.expiryDate >= :visibilityCutoff)
-            order by n.createdAt desc
+            order by n.pinned desc, n.createdAt desc
             """)
     List<Notice> findActiveNoticesVisibleForUser(
             @Param("department") String department,
             @Param("year") Integer year,
             @Param("visibilityCutoff") LocalDateTime visibilityCutoff
     );
+
+    @Query("""
+            select distinct n
+            from Notice n
+            left join fetch n.targets
+            join fetch n.createdBy
+            order by n.pinned desc, n.createdAt desc
+            """)
+    List<Notice> findAllWithTargetsForAdmin();
+
+    List<Notice> findTop5ByOrderByCreatedAtDesc();
 
     @Query("""
             select n

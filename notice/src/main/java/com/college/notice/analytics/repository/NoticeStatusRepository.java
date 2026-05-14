@@ -15,6 +15,8 @@ public interface NoticeStatusRepository extends JpaRepository<NoticeStatus, Long
 
     long countByNoticeIdAndIsAcknowledgedTrue(Long noticeId);
 
+    long countByNoticeIdAndViewedTrue(Long noticeId);
+
     Optional<NoticeStatus> findByUserIdAndNoticeId(Long userId, Long noticeId);
 
     @Query("""

@@ -49,9 +49,18 @@ public class Notice {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
+    @Column(nullable = false, columnDefinition = "varchar(64) default 'GENERAL'")
+    private String category;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Priority priority;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean pinned;
+
+    @Column(nullable = false, columnDefinition = "bigint default 0")
+    private Long viewCount;
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
@@ -71,6 +80,12 @@ public class Notice {
     void onCreate() {
         if (createdAt == null) {
             createdAt = LocalDateTime.now();
+        }
+        if (category == null || category.trim().isEmpty()) {
+            category = "GENERAL";
+        }
+        if (viewCount == null) {
+            viewCount = 0L;
         }
     }
 }

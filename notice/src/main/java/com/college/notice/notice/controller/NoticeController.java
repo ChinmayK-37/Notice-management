@@ -1,6 +1,9 @@
 package com.college.notice.notice.controller;
 
+import com.college.notice.notice.dto.ActivityItemResponse;
 import com.college.notice.notice.dto.NoticeRequest;
+import com.college.notice.notice.dto.NoticeReplyRequest;
+import com.college.notice.notice.dto.NoticeReplyResponse;
 import com.college.notice.notice.dto.NoticeResponse;
 import com.college.notice.notice.service.NoticeService;
 import com.college.notice.shared.util.ApiResponse;
@@ -45,6 +48,59 @@ public class NoticeController {
                 ApiResponse.<List<NoticeResponse>>builder()
                         .success(true)
                         .message("Notices fetched successfully")
+                        .data(response)
+                        .build()
+        );
+    }
+
+    @GetMapping("/activity")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<ActivityItemResponse>>> getRecentActivity() {
+        List<ActivityItemResponse> response = noticeService.getRecentActivity();
+        return ResponseEntity.ok(
+                ApiResponse.<List<ActivityItemResponse>>builder()
+                        .success(true)
+                        .message("Recent activity fetched successfully")
+                        .data(response)
+                        .build()
+        );
+    }
+
+    @PostMapping("/{id}/view")
+    public ResponseEntity<ApiResponse<NoticeResponse>> recordView(@PathVariable("id") Long noticeId) {
+        NoticeResponse response = noticeService.recordView(noticeId);
+        return ResponseEntity.ok(
+                ApiResponse.<NoticeResponse>builder()
+                        .success(true)
+                        .message("Notice view recorded")
+                        .data(response)
+                        .build()
+        );
+    }
+
+    @GetMapping("/{id}/replies")
+    public ResponseEntity<ApiResponse<List<NoticeReplyResponse>>> getReplies(@PathVariable("id") Long noticeId) {
+        List<NoticeReplyResponse> response = noticeService.getReplies(noticeId);
+        return ResponseEntity.ok(
+                ApiResponse.<List<NoticeReplyResponse>>builder()
+                        .success(true)
+                        .message("Replies fetched successfully")
+                        .data(response)
+                        .build()
+        );
+    }
+
+    @PostMapping("/{id}/replies")
+    @PreAuthorize("hasRole('STUDENT')")
+    public ResponseEntity<ApiResponse<NoticeReplyResponse>> addReply(
+            @PathVariable("id") Long noticeId,
+            @Valid @RequestBody NoticeReplyRequest request
+    ) {
+        NoticeReplyResponse response = noticeService.addReply(noticeId, request);
+        return ResponseEntity.ok(
+                ApiResponse.<NoticeReplyResponse>builder()
+                        .success(true)
+                        .message("Reply submitted successfully")
                         .data(response)
                         .build()
         );

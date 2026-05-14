@@ -20,4 +20,6 @@ public interface NotificationRepository extends JpaRepository<Notification, Long
     Optional<Notification> findFirstByNoticeIdAndUserIdOrderByIdAsc(Long noticeId, Long userId);
 
     boolean existsByUserAndNoticeAndType(User user, Notice notice, String type);
+
+    List<Notification> findTop5ByIsAcknowledgedTrueOrderByCreatedAtDesc();
 }

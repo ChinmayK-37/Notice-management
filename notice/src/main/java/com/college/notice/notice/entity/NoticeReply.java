@@ -1,7 +1,6 @@
-package com.college.notice.analytics.entity;
+package com.college.notice.notice.entity;
 
 import com.college.notice.auth.entity.User;
-import com.college.notice.notice.entity.Notice;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.FetchType;
@@ -11,8 +10,9 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -21,12 +21,10 @@ import lombok.Setter;
 
 @Entity
 @Table(
-        name = "notice_status",
-        uniqueConstraints = {
-                @UniqueConstraint(columnNames = {"user_id", "notice_id"})
-        },
+        name = "notice_replies",
         indexes = {
-                @Index(name = "idx_notice_read", columnList = "notice_id, is_read")
+                @Index(name = "idx_notice_replies_notice", columnList = "notice_id, created_at"),
+                @Index(name = "idx_notice_replies_user", columnList = "user_id")
         }
 )
 @Getter
@@ -34,26 +32,31 @@ import lombok.Setter;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class NoticeStatus {
+public class NoticeReply {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "notice_id", nullable = false)
     private Notice notice;
 
-    @Column(nullable = false)
-    private boolean isRead;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String message;
 
     @Column(nullable = false)
-    private boolean isAcknowledged;
+    private LocalDateTime createdAt;
 
-    @Column(nullable = false, columnDefinition = "boolean default false")
-    private boolean viewed;
+    @PrePersist
+    void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 }
+

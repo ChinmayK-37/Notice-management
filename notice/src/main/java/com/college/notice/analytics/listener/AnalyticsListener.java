@@ -8,6 +8,7 @@ import com.college.notice.notice.entity.Notice;
 import com.college.notice.notice.entity.NoticeTarget;
 import com.college.notice.notice.event.NoticeCreatedEvent;
 import com.college.notice.notice.repository.NoticeRepository;
+import com.college.notice.shared.constants.Role;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -43,6 +44,7 @@ public class AnalyticsListener {
                         .notice(notice)
                         .isRead(false)
                         .isAcknowledged(false)
+                        .viewed(false)
                         .build())
                 .toList();
 
@@ -52,14 +54,18 @@ public class AnalyticsListener {
 
     private List<User> resolveRecipients(Notice notice) {
         if (notice.getTargets() == null || notice.getTargets().isEmpty()) {
-            return userRepository.findAll();
+            return userRepository.findAll().stream()
+                    .filter(user -> user.getRole() == Role.STUDENT)
+                    .toList();
         }
 
         LinkedHashMap<Long, User> recipients = new LinkedHashMap<>();
         for (NoticeTarget target : notice.getTargets()) {
             List<User> users = userRepository.findByDepartmentAndYear(target.getDepartment(), target.getYear());
             for (User user : users) {
-                recipients.putIfAbsent(user.getId(), user);
+                if (user.getRole() == Role.STUDENT) {
+                    recipients.putIfAbsent(user.getId(), user);
+                }
             }
         }
         return new ArrayList<>(recipients.values());

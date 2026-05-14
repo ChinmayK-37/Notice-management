@@ -8,6 +8,7 @@ import com.college.notice.notice.entity.NoticeTarget;
 import com.college.notice.notification.dto.NotificationResponse;
 import com.college.notice.notification.entity.Notification;
 import com.college.notice.notification.repository.NotificationRepository;
+import com.college.notice.shared.constants.Role;
 import org.springframework.data.domain.Pageable;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -95,14 +96,18 @@ public class NotificationService {
 
     private List<User> resolveRecipients(Notice notice) {
         if (notice.getTargets() == null || notice.getTargets().isEmpty()) {
-            return userRepository.findAll();
+            return userRepository.findAll().stream()
+                    .filter(user -> user.getRole() == Role.STUDENT)
+                    .toList();
         }
 
         LinkedHashMap<Long, User> recipients = new LinkedHashMap<>();
         for (NoticeTarget target : notice.getTargets()) {
             List<User> users = userRepository.findByDepartmentAndYear(target.getDepartment(), target.getYear());
             for (User user : users) {
-                recipients.putIfAbsent(user.getId(), user);
+                if (user.getRole() == Role.STUDENT) {
+                    recipients.putIfAbsent(user.getId(), user);
+                }
             }
         }
         return new ArrayList<>(recipients.values());

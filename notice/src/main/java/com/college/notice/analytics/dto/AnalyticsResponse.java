@@ -11,6 +11,11 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class AnalyticsResponse {
     private long totalUsers;
+    private long readCount;
+    private long unreadCount;
+    private long acknowledgedCount;
+    private long viewCount;
+    private long replyCount;
     private double readPercentage;
     private double acknowledgedPercentage;
 }

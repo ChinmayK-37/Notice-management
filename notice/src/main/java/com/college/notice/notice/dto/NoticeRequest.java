@@ -24,8 +24,12 @@ public class NoticeRequest {
     @NotBlank(message = "Description is required")
     private String description;
 
+    private String category;
+
     @NotNull(message = "Priority is required")
     private Priority priority;
+
+    private boolean pinned;
 
     @Future(message = "Expiry date must be in the future")
     private LocalDateTime expiryDate;
