@@ -49,6 +49,15 @@ class NoticeService {
     }
   }
 
+  Future<NoticeModel> getNoticeById(String noticeId) async {
+    try {
+      final response = await apiService.dio.get<dynamic>('/notices/$noticeId');
+      return NoticeModel.fromJson(_extractMap(response.data));
+    } catch (error) {
+      throw Exception(ErrorHandler.getMessage(error));
+    }
+  }
+
   Future<NoticeModel> createNotice({
     required String title,
     required String description,

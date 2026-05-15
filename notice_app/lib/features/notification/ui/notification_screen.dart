@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:notice_app/features/notice/providers/notice_provider.dart';
+import 'package:notice_app/features/notice/ui/notice_detail_screen.dart';
 import 'package:notice_app/features/notification/data/notification_model.dart';
 import 'package:notice_app/features/notification/providers/notification_provider.dart';
 
@@ -48,6 +50,39 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Notification acknowledged')));
+  }
+
+  Future<void> _openNotice(NotificationModel notification) async {
+    if (!notification.isRead) {
+      await ref.read(notificationProvider.notifier).markAsRead(notification.id);
+    }
+    final noticeId = notification.noticeId;
+    if (noticeId == null) {
+      return;
+    }
+    try {
+      final notice = await ref
+          .read(noticeServiceProvider)
+          .getNoticeById(noticeId.toString());
+      if (!mounted) {
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => NoticeDetailScreen(notice: notice),
+        ),
+      );
+      await ref.read(notificationProvider.notifier).fetchNotifications();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error.toString().replaceFirst('Exception: ', '')),
+        ),
+      );
+    }
   }
 
   Future<void> _refresh() {
@@ -151,6 +186,7 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
           return _NotificationTile(
             notification: entry.value,
             index: entry.key,
+            onOpen: () => _openNotice(entry.value),
             onMarkAsRead: () => _onMarkAsRead(entry.value),
             onAcknowledge: () => _onAcknowledge(entry.value),
           );
@@ -281,12 +317,14 @@ class _NotificationTile extends StatelessWidget {
   const _NotificationTile({
     required this.notification,
     required this.index,
+    required this.onOpen,
     required this.onMarkAsRead,
     required this.onAcknowledge,
   });
 
   final NotificationModel notification;
   final int index;
+  final VoidCallback onOpen;
   final VoidCallback onMarkAsRead;
   final VoidCallback onAcknowledge;
 
@@ -317,7 +355,7 @@ class _NotificationTile extends StatelessWidget {
         color: notification.isRead ? null : color.withValues(alpha: 0.06),
         child: InkWell(
           borderRadius: BorderRadius.circular(14),
-          onTap: onMarkAsRead,
+          onTap: onOpen,
           onLongPress: onAcknowledge,
           child: Padding(
             padding: const EdgeInsets.all(14),
@@ -420,6 +458,27 @@ class _NotificationTile extends StatelessWidget {
                           ),
                         ],
                       ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          TextButton.icon(
+                            onPressed: notification.isRead
+                                ? null
+                                : onMarkAsRead,
+                            icon: const Icon(Icons.mark_email_read_outlined),
+                            label: const Text('Read'),
+                          ),
+                          TextButton.icon(
+                            onPressed: notification.isAcknowledged
+                                ? null
+                                : onAcknowledge,
+                            icon: const Icon(Icons.task_alt_outlined),
+                            label: const Text('Acknowledge'),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ),
@@ -456,11 +515,18 @@ class _StatusChip extends StatelessWidget {
         children: [
           Icon(icon, size: 14, color: color),
           const SizedBox(width: 5),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
+          ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: MediaQuery.sizeOf(context).width * 0.54,
+            ),
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: color,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
         ],

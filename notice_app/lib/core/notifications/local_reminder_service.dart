@@ -20,8 +20,12 @@ class LocalReminderService {
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  final StreamController<String> _noticeTapController =
+      StreamController<String>.broadcast();
 
   bool _initialized = false;
+
+  Stream<String> get noticeTapStream => _noticeTapController.stream;
 
   bool get _supported {
     if (kIsWeb) {
@@ -58,8 +62,18 @@ class LocalReminderService {
         _log(
           'tap notificationId=${response.id} payload=${response.payload ?? ''}',
         );
+        _emitNoticeTap(response.payload);
       },
     );
+
+    final launchDetails = await _plugin.getNotificationAppLaunchDetails();
+    final launchPayload =
+        launchDetails?.notificationResponse?.payload?.trim() ?? '';
+    if (launchDetails?.didNotificationLaunchApp == true &&
+        launchPayload.isNotEmpty) {
+      _log('launchFromNotification payload=$launchPayload');
+      scheduleMicrotask(() => _emitNoticeTap(launchPayload));
+    }
 
     final android = _plugin
         .resolvePlatformSpecificImplementation<
@@ -107,6 +121,14 @@ class LocalReminderService {
     }
     await _ensureReady();
     return _plugin.pendingNotificationRequests();
+  }
+
+  void _emitNoticeTap(String? payload) {
+    final noticeId = payload?.trim();
+    if (noticeId == null || noticeId.isEmpty) {
+      return;
+    }
+    _noticeTapController.add(noticeId);
   }
 
   Future<void> cancelAll() async {

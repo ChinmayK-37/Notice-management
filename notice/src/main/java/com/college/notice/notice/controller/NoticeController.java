@@ -79,6 +79,18 @@ public class NoticeController {
         );
     }
 
+    @GetMapping("/{id}")
+    public ResponseEntity<ApiResponse<NoticeResponse>> getNoticeById(@PathVariable("id") Long noticeId) {
+        NoticeResponse response = noticeService.getNoticeById(noticeId);
+        return ResponseEntity.ok(
+                ApiResponse.<NoticeResponse>builder()
+                        .success(true)
+                        .message("Notice fetched successfully")
+                        .data(response)
+                        .build()
+        );
+    }
+
     @PostMapping("/{id}/view")
     public ResponseEntity<ApiResponse<NoticeResponse>> recordView(@PathVariable("id") Long noticeId) {
         NoticeResponse response = noticeService.recordView(noticeId);

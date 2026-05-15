@@ -225,6 +225,23 @@ public class NoticeService {
     }
 
     @Transactional
+    public NoticeResponse getNoticeById(Long noticeId) {
+        User currentUser = getCurrentUser();
+        refreshNoticeLifecycle();
+        Notice notice = noticeRepository.findByIdWithTargets(noticeId)
+                .orElseThrow(() -> new RuntimeException("Notice not found"));
+
+        if (currentUser.getRole() != Role.ADMIN && !isVisibleToStudent(notice, currentUser)) {
+            throw new RuntimeException("Notice not found");
+        }
+
+        Optional<Notification> notification = currentUser.getRole() == Role.ADMIN
+                ? Optional.empty()
+                : notificationRepository.findFirstByNoticeIdAndUserIdOrderByIdAsc(noticeId, currentUser.getId());
+        return toResponse(notice, notification);
+    }
+
+    @Transactional
     public void deleteNotice(Long noticeId) {
         Notice notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new RuntimeException("Notice not found"));
@@ -283,6 +300,34 @@ public class NoticeService {
             return NoticeState.EXPIRED;
         }
         return NoticeState.ACTIVE;
+    }
+
+    private boolean isVisibleToStudent(Notice notice, User user) {
+        if (notice.getState() != NoticeState.ACTIVE) {
+            return false;
+        }
+        if (notice.getExpiryDate() != null && notice.getExpiryDate().isBefore(LocalDateTime.now())) {
+            return false;
+        }
+        if (notice.getTargets() == null || notice.getTargets().isEmpty()) {
+            return true;
+        }
+        return notice.getTargets().stream().anyMatch(target ->
+                target.getDepartment().equalsIgnoreCase(user.getDepartment())
+                        && target.getYear().equals(user.getYear())
+                        && matchesOptionalTarget(target.getDivision(), user.getDivision())
+                        && matchesOptionalTarget(target.getBatch(), user.getBatch())
+        );
+    }
+
+    private boolean matchesOptionalTarget(String targetValue, String userValue) {
+        if (targetValue == null || targetValue.trim().isEmpty()) {
+            return true;
+        }
+        if (userValue == null || userValue.trim().isEmpty()) {
+            return true;
+        }
+        return targetValue.equalsIgnoreCase(userValue);
     }
 
     private void applyTargets(Notice notice, NoticeRequest request) {

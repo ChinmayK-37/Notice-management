@@ -15,6 +15,26 @@ class App extends ConsumerStatefulWidget {
 }
 
 class _AppState extends ConsumerState<App> {
+  StreamSubscription<String>? _noticeTapSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _noticeTapSubscription = LocalReminderService.instance.noticeTapStream
+        .listen((noticeId) {
+          if (!mounted) {
+            return;
+          }
+          ref.read(appRouterProvider).go('/notice/$noticeId');
+        });
+  }
+
+  @override
+  void dispose() {
+    _noticeTapSubscription?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     ref.listen<NoticeState>(noticeProvider, (previous, next) {

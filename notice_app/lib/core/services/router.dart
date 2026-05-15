@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:notice_app/features/auth/providers/auth_provider.dart';
 import 'package:notice_app/features/auth/ui/login_screen.dart';
 import 'package:notice_app/features/auth/ui/register_screen.dart';
+import 'package:notice_app/features/notice/ui/notice_route_screen.dart';
 import 'package:notice_app/shared/ui/main_screen.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
@@ -17,6 +18,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const RegisterScreen(),
       ),
       GoRoute(path: '/home', builder: (context, state) => const MainScreen()),
+      GoRoute(
+        path: '/notice/:id',
+        builder: (context, state) =>
+            NoticeRouteScreen(noticeId: state.pathParameters['id'] ?? ''),
+      ),
     ],
     redirect: (context, state) {
       if (authState.isLoading) {
