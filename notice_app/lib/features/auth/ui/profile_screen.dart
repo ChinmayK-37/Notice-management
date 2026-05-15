@@ -15,6 +15,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _departmentController = TextEditingController();
   int _year = 1;
+  String _division = 'A';
+  String _batch = 'A1';
   UserModel? _user;
   bool _loading = true;
   bool _saving = false;
@@ -51,6 +53,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _nameController.text = user.name;
         _departmentController.text = user.department;
         _year = user.year.clamp(1, 4);
+        _division = _normalizeDivision(user.division);
+        _batch = _normalizeBatch(user.batch, _division);
         _loading = false;
       });
     } catch (e) {
@@ -65,6 +69,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _save() async {
+    final isAdmin = _user?.role.toUpperCase() == 'ADMIN';
     setState(() {
       _saving = true;
       _error = null;
@@ -76,6 +81,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             name: _nameController.text.trim(),
             department: _departmentController.text.trim(),
             year: _year,
+            division: isAdmin ? null : _division,
+            batch: isAdmin ? null : _batch,
           );
       if (!mounted) {
         return;
@@ -123,6 +130,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (mounted) {
       context.go('/login');
     }
+  }
+
+  String _normalizeDivision(String? value) {
+    final normalized = (value ?? '').trim().toUpperCase();
+    return const ['A', 'B', 'C'].contains(normalized) ? normalized : 'A';
+  }
+
+  String _normalizeBatch(String? value, String division) {
+    final normalized = (value ?? '').trim().toUpperCase();
+    const batches = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+    return batches.contains(normalized) ? normalized : '${division}1';
   }
 
   @override
@@ -213,6 +231,44 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                             ? null
                                             : (_) => setState(() => _year = y),
                                       ),
+                                  ],
+                                ),
+                                const SizedBox(height: 14),
+                                Text(
+                                  'Division and batch',
+                                  style: Theme.of(context).textTheme.labelLarge
+                                      ?.copyWith(fontWeight: FontWeight.w800),
+                                ),
+                                const SizedBox(height: 8),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    _ProfileDropdown<String>(
+                                      label: 'Division',
+                                      value: _division,
+                                      values: const ['A', 'B', 'C'],
+                                      enabled: !_saving,
+                                      onChanged: (value) => setState(() {
+                                        _division = value;
+                                        _batch = '${value}1';
+                                      }),
+                                    ),
+                                    _ProfileDropdown<String>(
+                                      label: 'Batch',
+                                      value: _batch,
+                                      values: const [
+                                        'A1',
+                                        'A2',
+                                        'B1',
+                                        'B2',
+                                        'C1',
+                                        'C2',
+                                      ],
+                                      enabled: !_saving,
+                                      onChanged: (value) =>
+                                          setState(() => _batch = value),
+                                    ),
                                   ],
                                 ),
                               ],
@@ -332,9 +388,61 @@ class _ProfileHeader extends StatelessWidget {
                   icon: Icons.timeline_outlined,
                   label: 'Year ${user.year}',
                 ),
+              if (!isAdmin && (user.division ?? '').isNotEmpty)
+                _ProfileChip(
+                  icon: Icons.view_module_outlined,
+                  label: 'Div ${user.division}',
+                ),
+              if (!isAdmin && (user.batch ?? '').isNotEmpty)
+                _ProfileChip(
+                  icon: Icons.group_work_outlined,
+                  label: 'Batch ${user.batch}',
+                ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ProfileDropdown<T> extends StatelessWidget {
+  const _ProfileDropdown({
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<T> values;
+  final bool enabled;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 150,
+      child: DropdownButtonFormField<T>(
+        initialValue: value,
+        decoration: InputDecoration(labelText: label, isDense: true),
+        items: values
+            .map(
+              (item) => DropdownMenuItem<T>(
+                value: item,
+                child: Text(item.toString()),
+              ),
+            )
+            .toList(),
+        onChanged: enabled && values.isNotEmpty
+            ? (value) {
+                if (value != null) {
+                  onChanged(value);
+                }
+              }
+            : null,
       ),
     );
   }

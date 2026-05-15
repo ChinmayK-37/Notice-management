@@ -52,6 +52,10 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Integer year;
 
+    private String division;
+
+    private String batch;
+
     public Collection<? extends GrantedAuthority> getAuthorities() {
         return List.of(new SimpleGrantedAuthority("ROLE_" + role.name()));
     }

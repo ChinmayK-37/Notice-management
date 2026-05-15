@@ -36,6 +36,8 @@ public class AuthService {
         user.setName(request.getName());
         user.setDepartment(request.getDepartment());
         user.setYear(request.getYear());
+        user.setDivision(normalizeOptional(request.getDivision()));
+        user.setBatch(normalizeOptional(request.getBatch()));
         return toUserResponse(userRepository.save(user));
     }
 
@@ -60,6 +62,8 @@ public class AuthService {
                 .role(user.getRole())
                 .department(user.getDepartment())
                 .year(user.getYear())
+                .division(user.getDivision())
+                .batch(user.getBatch())
                 .build();
     }
 
@@ -75,6 +79,8 @@ public class AuthService {
                 .role(Role.STUDENT)
                 .department(request.getDepartment())
                 .year(request.getYear())
+                .division(normalizeOptional(request.getDivision()))
+                .batch(normalizeOptional(request.getBatch()))
                 .build();
 
         User savedUser = userRepository.save(user);
@@ -96,5 +102,12 @@ public class AuthService {
                 .accessToken(jwtService.generateAccessToken(user))
                 .refreshToken(jwtService.generateRefreshToken(user))
                 .build();
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim().toUpperCase();
     }
 }

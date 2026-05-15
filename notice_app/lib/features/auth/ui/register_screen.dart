@@ -16,6 +16,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _departmentController = TextEditingController();
   int _year = 1;
+  String _division = 'A';
+  String _batch = 'A1';
 
   @override
   void dispose() {
@@ -162,6 +164,44 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               ),
                           ],
                         ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'Division and batch',
+                          style: Theme.of(context).textTheme.labelLarge
+                              ?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 10,
+                          runSpacing: 10,
+                          children: [
+                            _SmallDropdown<String>(
+                              label: 'Division',
+                              value: _division,
+                              values: const ['A', 'B', 'C'],
+                              enabled: !authState.isLoading,
+                              onChanged: (value) => setState(() {
+                                _division = value;
+                                _batch = '${value}1';
+                              }),
+                            ),
+                            _SmallDropdown<String>(
+                              label: 'Batch',
+                              value: _batch,
+                              values: const [
+                                'A1',
+                                'A2',
+                                'B1',
+                                'B2',
+                                'C1',
+                                'C2',
+                              ],
+                              enabled: !authState.isLoading,
+                              onChanged: (value) =>
+                                  setState(() => _batch = value),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 16),
                         if (authState.error != null) ...[
                           _AuthError(message: authState.error!),
@@ -180,6 +220,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                         department: _departmentController.text
                                             .trim(),
                                         year: _year,
+                                        division: _division,
+                                        batch: _batch,
                                       );
                                 },
                           icon: authState.isLoading
@@ -207,6 +249,48 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _SmallDropdown<T> extends StatelessWidget {
+  const _SmallDropdown({
+    required this.label,
+    required this.value,
+    required this.values,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<T> values;
+  final bool enabled;
+  final ValueChanged<T> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 150,
+      child: DropdownButtonFormField<T>(
+        initialValue: value,
+        decoration: InputDecoration(labelText: label, isDense: true),
+        items: values
+            .map(
+              (item) => DropdownMenuItem<T>(
+                value: item,
+                child: Text(item.toString()),
+              ),
+            )
+            .toList(),
+        onChanged: enabled && values.isNotEmpty
+            ? (value) {
+                if (value != null) {
+                  onChanged(value);
+                }
+              }
+            : null,
       ),
     );
   }

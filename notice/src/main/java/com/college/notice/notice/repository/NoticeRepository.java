@@ -17,7 +17,12 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             join fetch n.createdBy cb
             where (
                     t is null
-                    or (t.department = :department and t.year = :year)
+                    or (
+                        t.department = :department
+                        and t.year = :year
+                        and (t.division is null or :division is null or t.division = :division)
+                        and (t.batch is null or :batch is null or t.batch = :batch)
+                    )
                   )
               and (n.expiryDate is null or n.expiryDate >= :visibilityCutoff)
               and n.state = com.college.notice.notice.entity.NoticeState.ACTIVE
@@ -26,6 +31,8 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
     List<Notice> findActiveNoticesVisibleForUser(
             @Param("department") String department,
             @Param("year") Integer year,
+            @Param("division") String division,
+            @Param("batch") String batch,
             @Param("visibilityCutoff") LocalDateTime visibilityCutoff
     );
 

@@ -57,7 +57,7 @@ public class Notice {
     private Priority priority;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, columnDefinition = "varchar(24) default 'ACTIVE'")
+    @Column(nullable = false, length = 24)
     private NoticeState state;
 
     @Column(nullable = false, columnDefinition = "boolean default false")

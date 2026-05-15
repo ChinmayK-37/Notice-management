@@ -55,15 +55,22 @@ class NoticeModel {
       }
       final d = (item['department'] ?? '').toString().trim();
       final y = item['year'];
+      final division = (item['division'] ?? '').toString().trim();
+      final batch = (item['batch'] ?? '').toString().trim();
       if (d.isEmpty) {
         continue;
       }
+      final refinements = <String>[
+        if (division.isNotEmpty) 'Div $division',
+        if (batch.isNotEmpty) 'Batch $batch',
+      ];
+      final suffix = refinements.isEmpty ? '' : ' (${refinements.join(', ')})';
       if (y is num) {
-        parts.add('$d - Year ${y.toInt()}');
+        parts.add('$d - Year ${y.toInt()}$suffix');
       } else if (y != null) {
-        parts.add('$d - Year $y');
+        parts.add('$d - Year $y$suffix');
       } else {
-        parts.add(d);
+        parts.add('$d$suffix');
       }
     }
     return parts.isEmpty ? 'All students' : parts.join('; ');

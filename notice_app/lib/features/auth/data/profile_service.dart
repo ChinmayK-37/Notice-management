@@ -27,6 +27,8 @@ class ProfileService {
     required String name,
     required String department,
     required int year,
+    required String? division,
+    required String? batch,
   }) async {
     try {
       final response = await apiService.dio.put<dynamic>(
@@ -35,6 +37,8 @@ class ProfileService {
           'name': name,
           'department': department,
           'year': year,
+          'division': division,
+          'batch': batch,
         },
       );
       final dynamic responseData = response.data;

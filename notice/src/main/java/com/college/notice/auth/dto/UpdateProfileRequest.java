@@ -25,4 +25,8 @@ public class UpdateProfileRequest {
     @Min(value = 1, message = "Year must be between 1 and 4")
     @Max(value = 4, message = "Year must be between 1 and 4")
     private Integer year;
+
+    private String division;
+
+    private String batch;
 }

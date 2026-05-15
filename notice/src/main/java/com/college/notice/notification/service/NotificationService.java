@@ -112,12 +112,27 @@ public class NotificationService {
         for (NoticeTarget target : notice.getTargets()) {
             List<User> users = userRepository.findByDepartmentAndYear(target.getDepartment(), target.getYear());
             for (User user : users) {
-                if (user.getRole() == Role.STUDENT) {
+                if (user.getRole() == Role.STUDENT && targetMatchesUser(target, user)) {
                     recipients.putIfAbsent(user.getId(), user);
                 }
             }
         }
         return new ArrayList<>(recipients.values());
+    }
+
+    private boolean targetMatchesUser(NoticeTarget target, User user) {
+        return matchesOptional(target.getDivision(), user.getDivision())
+                && matchesOptional(target.getBatch(), user.getBatch());
+    }
+
+    private boolean matchesOptional(String targetValue, String userValue) {
+        if (targetValue == null || targetValue.trim().isEmpty()) {
+            return true;
+        }
+        if (userValue == null || userValue.trim().isEmpty()) {
+            return true;
+        }
+        return targetValue.equalsIgnoreCase(userValue);
     }
 
     private User getCurrentUser() {

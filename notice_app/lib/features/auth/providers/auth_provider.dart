@@ -127,6 +127,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
     required String department,
     required int year,
+    required String? division,
+    required String? batch,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
 
@@ -137,6 +139,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
         department: department,
         year: year,
+        division: division,
+        batch: batch,
       );
       final String? token = await _tokenService.getAccessToken();
       if (token != null && JwtClaims.isValidAccessToken(token)) {

@@ -17,4 +17,6 @@ public class UserResponse {
     private Role role;
     private String department;
     private Integer year;
+    private String division;
+    private String batch;
 }

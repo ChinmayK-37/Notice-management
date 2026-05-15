@@ -6,6 +6,8 @@ class UserModel {
     required this.role,
     required this.department,
     required this.year,
+    this.division,
+    this.batch,
   });
 
   final int id;
@@ -14,6 +16,8 @@ class UserModel {
   final String role;
   final String department;
   final int year;
+  final String? division;
+  final String? batch;
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -23,6 +27,8 @@ class UserModel {
       role: (json['role'] ?? 'STUDENT').toString(),
       department: (json['department'] ?? '').toString(),
       year: (json['year'] as num?)?.toInt() ?? 1,
+      division: json['division']?.toString(),
+      batch: json['batch']?.toString(),
     );
   }
 
@@ -34,6 +40,8 @@ class UserModel {
       'role': role,
       'department': department,
       'year': year,
+      'division': division,
+      'batch': batch,
     };
   }
 }

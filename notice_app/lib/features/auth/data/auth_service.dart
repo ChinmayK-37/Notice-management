@@ -45,6 +45,8 @@ class AuthService {
     required String password,
     required String department,
     required int year,
+    required String? division,
+    required String? batch,
   }) async {
     try {
       final response = await apiService.post(
@@ -55,6 +57,8 @@ class AuthService {
           'password': password,
           'department': department,
           'year': year,
+          'division': division,
+          'batch': batch,
         },
       );
       await _persistTokensFromEnvelope(response.data);

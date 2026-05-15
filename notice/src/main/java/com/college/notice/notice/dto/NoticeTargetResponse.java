@@ -13,4 +13,6 @@ public class NoticeTargetResponse {
     private Long id;
     private String department;
     private Integer year;
+    private String division;
+    private String batch;
 }

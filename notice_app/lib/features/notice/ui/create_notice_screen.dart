@@ -18,6 +18,8 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
   String _category = 'GENERAL';
   String _priority = 'MEDIUM';
   int _year = 1;
+  String _division = 'ALL';
+  String _batch = 'ALL';
   bool _pinned = false;
   bool _global = true;
   bool _saving = false;
@@ -78,15 +80,33 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
       return;
     }
     final exists = _targets.any(
-      (target) => target['department'] == department && target['year'] == _year,
+      (target) =>
+          target['department'] == department &&
+          target['year'] == _year &&
+          target['division'] == (_division == 'ALL' ? null : _division) &&
+          target['batch'] == (_batch == 'ALL' ? null : _batch),
     );
     if (exists) {
       return;
     }
     setState(() {
       _global = false;
-      _targets.add(<String, dynamic>{'department': department, 'year': _year});
+      _targets.add(<String, dynamic>{
+        'department': department,
+        'year': _year,
+        'division': _division == 'ALL' ? null : _division,
+        'batch': _batch == 'ALL' ? null : _batch,
+      });
     });
+  }
+
+  String _targetLabel(Map<String, dynamic> target) {
+    final refinements = <String>[
+      if (target['division'] != null) 'Div ${target['division']}',
+      if (target['batch'] != null) 'Batch ${target['batch']}',
+    ];
+    final suffix = refinements.isEmpty ? '' : ' (${refinements.join(', ')})';
+    return '${target['department']} - Year ${target['year']}$suffix';
   }
 
   Future<void> _save() async {
@@ -321,6 +341,42 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
                             ],
                           ),
                           const SizedBox(height: 10),
+                          Wrap(
+                            spacing: 10,
+                            runSpacing: 10,
+                            children: [
+                              _DropdownBox(
+                                label: 'Division',
+                                value: _division,
+                                values: const ['ALL', 'A', 'B', 'C'],
+                                onChanged: _saving
+                                    ? null
+                                    : (value) => setState(() {
+                                        _division = value;
+                                        if (value != 'ALL') {
+                                          _batch = '${value}1';
+                                        }
+                                      }),
+                              ),
+                              _DropdownBox(
+                                label: 'Batch',
+                                value: _batch,
+                                values: const [
+                                  'ALL',
+                                  'A1',
+                                  'A2',
+                                  'B1',
+                                  'B2',
+                                  'C1',
+                                  'C2',
+                                ],
+                                onChanged: _saving
+                                    ? null
+                                    : (value) => setState(() => _batch = value),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
                           OutlinedButton.icon(
                             onPressed: _saving ? null : _addTarget,
                             icon: const Icon(Icons.group_add_outlined),
@@ -333,9 +389,7 @@ class _CreateNoticeScreenState extends ConsumerState<CreateNoticeScreen> {
                             children: [
                               for (final target in _targets)
                                 InputChip(
-                                  label: Text(
-                                    '${target['department']} - Year ${target['year']}',
-                                  ),
+                                  label: Text(_targetLabel(target)),
                                   onDeleted: _saving
                                       ? null
                                       : () => setState(

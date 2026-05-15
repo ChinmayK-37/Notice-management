@@ -81,6 +81,8 @@ public class NoticeService {
             notices = noticeRepository.findActiveNoticesVisibleForUser(
                     currentUser.getDepartment(),
                     currentUser.getYear(),
+                    normalizeOptional(currentUser.getDivision()),
+                    normalizeOptional(currentUser.getBatch()),
                     noticeExpiryPolicy.visibilityCutoff()
             );
         }
@@ -292,8 +294,10 @@ public class NoticeService {
         for (var targetRequest : request.getTargets()) {
             NoticeTarget target = NoticeTarget.builder()
                     .notice(notice)
-                    .department(targetRequest.getDepartment())
+                    .department(normalizeRequired(targetRequest.getDepartment()))
                     .year(targetRequest.getYear())
+                    .division(normalizeOptional(targetRequest.getDivision()))
+                    .batch(normalizeOptional(targetRequest.getBatch()))
                     .build();
             notice.getTargets().add(target);
         }
@@ -316,12 +320,25 @@ public class NoticeService {
         return category.trim().toUpperCase();
     }
 
+    private String normalizeRequired(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
+    }
+
+    private String normalizeOptional(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return null;
+        }
+        return value.trim().toUpperCase();
+    }
+
     private NoticeResponse toResponse(Notice notice, Optional<Notification> notificationOptional) {
         List<NoticeTargetResponse> targets = notice.getTargets().stream()
                 .map(target -> NoticeTargetResponse.builder()
                         .id(target.getId())
                         .department(target.getDepartment())
                         .year(target.getYear())
+                        .division(target.getDivision())
+                        .batch(target.getBatch())
                         .build())
                 .collect(Collectors.toList());
 

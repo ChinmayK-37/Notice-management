@@ -18,4 +18,8 @@ public class NoticeTargetRequest {
 
     @NotNull(message = "Year is required")
     private Integer year;
+
+    private String division;
+
+    private String batch;
 }

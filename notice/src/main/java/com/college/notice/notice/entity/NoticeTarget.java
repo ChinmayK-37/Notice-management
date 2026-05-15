@@ -43,4 +43,8 @@ public class NoticeTarget {
 
     @Column(nullable = false)
     private Integer year;
+
+    private String division;
+
+    private String batch;
 }
