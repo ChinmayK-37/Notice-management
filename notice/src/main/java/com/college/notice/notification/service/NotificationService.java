@@ -84,10 +84,12 @@ public class NotificationService {
         Notification notification = notificationRepository.findByIdAndUserId(notificationId, currentUser.getId())
                 .orElseThrow(() -> new RuntimeException("Notification not found"));
 
+        notification.setRead(true);
         notification.setAcknowledged(true);
         Notification savedNotification = notificationRepository.save(notification);
         noticeStatusRepository.findByUserIdAndNoticeId(currentUser.getId(), notification.getNotice().getId())
                 .ifPresent(status -> {
+                    status.setRead(true);
                     status.setAcknowledged(true);
                     noticeStatusRepository.save(status);
                 });

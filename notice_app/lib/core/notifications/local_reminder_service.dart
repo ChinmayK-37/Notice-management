@@ -14,6 +14,10 @@ class LocalReminderService {
   LocalReminderService._();
   static final LocalReminderService instance = LocalReminderService._();
 
+  static const String _channelId = 'notice_deadlines';
+  static const String _channelName = 'Notice reminders';
+  static const int _maxRemindersPerNotice = 4;
+
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
@@ -35,8 +39,10 @@ class LocalReminderService {
     try {
       final TimezoneInfo info = await FlutterTimezone.getLocalTimezone();
       tz.setLocalLocation(tz.getLocation(info.identifier));
-    } on Object {
+      _log('timezone=${info.identifier}');
+    } on Object catch (error) {
       tz.setLocalLocation(tz.UTC);
+      _log('timezone fallback=UTC error=$error');
     }
 
     await _plugin.initialize(
@@ -48,20 +54,59 @@ class LocalReminderService {
           requestSoundPermission: true,
         ),
       ),
+      onDidReceiveNotificationResponse: (response) {
+        _log(
+          'tap notificationId=${response.id} payload=${response.payload ?? ''}',
+        );
+      },
+    );
+
+    final android = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+    await android?.createNotificationChannel(
+      const AndroidNotificationChannel(
+        _channelId,
+        _channelName,
+        description: 'Upcoming notice deadlines',
+        importance: Importance.high,
+      ),
     );
     _initialized = true;
   }
 
   Future<bool> _ensureNotificationPermission() async {
     if (defaultTargetPlatform == TargetPlatform.android) {
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      final bool? pluginGranted = await android
+          ?.requestNotificationsPermission();
+      if (pluginGranted == true) {
+        _log('permission=granted(plugin)');
+        return true;
+      }
+
       final PermissionStatus status = await Permission.notification.status;
       if (!status.isGranted) {
         final PermissionStatus requested = await Permission.notification
             .request();
+        _log('permission=${requested.name}');
         return requested.isGranted;
       }
+      _log('permission=${status.name}');
     }
     return true;
+  }
+
+  Future<List<PendingNotificationRequest>> pendingRequests() async {
+    if (!_supported) {
+      return const <PendingNotificationRequest>[];
+    }
+    await _ensureReady();
+    return _plugin.pendingNotificationRequests();
   }
 
   Future<void> cancelAll() async {
@@ -70,6 +115,7 @@ class LocalReminderService {
     }
     if (_initialized) {
       await _plugin.cancelAll();
+      _log('cancelAll reminders');
     }
   }
 
@@ -81,63 +127,60 @@ class LocalReminderService {
     await _ensureReady();
     final bool hasPermission = await _ensureNotificationPermission();
     if (!hasPermission) {
+      _log('skip sync: notification permission denied');
       return;
     }
     await _plugin.cancelAll();
 
     final DateTime now = DateTime.now();
     final Set<int> usedIds = <int>{};
+    int scheduled = 0;
+    int skipped = 0;
 
     for (final NoticeModel notice in notices) {
       final DateTime? expiry = notice.expiryDate;
-      if (expiry == null || !expiry.isAfter(now)) {
+      if (expiry == null) {
+        skipped++;
+        _log('skip notice=${notice.id} reason=no-expiry');
+        continue;
+      }
+      if (!expiry.isAfter(now)) {
+        skipped++;
+        _log(
+          'skip notice=${notice.id} reason=expired expiry=${expiry.toIso8601String()}',
+        );
         continue;
       }
 
-      final double hoursUntil = expiry.difference(now).inMinutes / 60.0;
-      final List<DateTime> fireTimes = <DateTime>[];
-
-      if (hoursUntil > 24) {
-        fireTimes.add(expiry.subtract(const Duration(hours: 24)));
-      }
-
-      if (hoursUntil <= 24 && hoursUntil > 6) {
-        DateTime t = now.add(const Duration(hours: 6));
-        while (t.isBefore(expiry.subtract(const Duration(hours: 1)))) {
-          fireTimes.add(t);
-          t = t.add(const Duration(hours: 6));
-        }
-      } else if (hoursUntil <= 6 && hoursUntil > 1) {
-        DateTime t = now.add(const Duration(hours: 1));
-        while (t.isBefore(expiry.subtract(const Duration(minutes: 30)))) {
-          fireTimes.add(t);
-          t = t.add(const Duration(hours: 1));
-        }
-      } else if (hoursUntil <= 1) {
-        fireTimes.add(now.add(const Duration(minutes: 5)));
-        fireTimes.add(expiry.subtract(const Duration(minutes: 15)));
-        fireTimes.add(expiry.subtract(const Duration(minutes: 2)));
+      final fireTimes = _adaptiveFireTimes(now: now, expiry: expiry);
+      if (fireTimes.isEmpty) {
+        skipped++;
+        _log(
+          'skip notice=${notice.id} reason=no-valid-fire-time expiry=${expiry.toIso8601String()}',
+        );
+        continue;
       }
 
       for (final DateTime when in fireTimes) {
-        if (!when.isAfter(now) || !when.isBefore(expiry)) {
-          continue;
-        }
         final int id = _notificationId(usedIds, notice.id, when);
-        final bool urgent = hoursUntil <= 1 || notice.priority == 'HIGH';
-        final String remaining = _remainingLabel(expiry.difference(when));
+        final Duration remainingAtFire = expiry.difference(when);
+        final bool urgent =
+            remainingAtFire.inMinutes <= 60 || notice.priority == 'HIGH';
+        final String remaining = _remainingLabel(remainingAtFire);
         await _plugin.zonedSchedule(
           id: id,
+          title: urgent ? 'Urgent deadline reminder' : 'Deadline reminder',
+          body: '${notice.title} - due in $remaining',
           scheduledDate: tz.TZDateTime.from(when, tz.local),
           notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
-              'notice_deadlines',
-              'Notice reminders',
+              _channelId,
+              _channelName,
               channelDescription: 'Upcoming notice deadlines',
-              importance: urgent
-                  ? Importance.max
-                  : Importance.defaultImportance,
-              priority: urgent ? Priority.max : Priority.defaultPriority,
+              importance: urgent ? Importance.max : Importance.high,
+              priority: urgent ? Priority.max : Priority.high,
+              category: AndroidNotificationCategory.reminder,
+              visibility: NotificationVisibility.public,
             ),
             iOS: const DarwinNotificationDetails(
               presentAlert: true,
@@ -146,11 +189,72 @@ class LocalReminderService {
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          title: urgent ? 'Urgent deadline reminder' : 'Deadline reminder',
-          body: '${notice.title} - due in $remaining',
+          payload: notice.id,
+        );
+        scheduled++;
+        _log(
+          'scheduled id=$id notice=${notice.id} priority=${notice.priority} fire=${when.toIso8601String()} expiry=${expiry.toIso8601String()} remaining=$remaining',
         );
       }
     }
+
+    final pending = await _plugin.pendingNotificationRequests();
+    _log(
+      'sync complete notices=${notices.length} scheduled=$scheduled skipped=$skipped pending=${pending.length}',
+    );
+  }
+
+  @visibleForTesting
+  List<DateTime> adaptiveFireTimesForTest({
+    required DateTime now,
+    required DateTime expiry,
+  }) {
+    return _adaptiveFireTimes(now: now, expiry: expiry);
+  }
+
+  List<DateTime> _adaptiveFireTimes({
+    required DateTime now,
+    required DateTime expiry,
+  }) {
+    if (!expiry.isAfter(now)) {
+      return const <DateTime>[];
+    }
+
+    final Duration untilExpiry = expiry.difference(now);
+    final List<DateTime> fireTimes = <DateTime>[];
+
+    if (untilExpiry > const Duration(hours: 24)) {
+      fireTimes.add(expiry.subtract(const Duration(hours: 24)));
+    } else if (untilExpiry > const Duration(hours: 6)) {
+      DateTime cursor = now.add(const Duration(hours: 6));
+      while (cursor.isBefore(expiry)) {
+        fireTimes.add(cursor);
+        cursor = cursor.add(const Duration(hours: 6));
+      }
+      fireTimes.add(expiry.subtract(const Duration(hours: 1)));
+    } else if (untilExpiry > const Duration(hours: 1)) {
+      DateTime cursor = now.add(const Duration(hours: 1));
+      while (cursor.isBefore(expiry)) {
+        fireTimes.add(cursor);
+        cursor = cursor.add(const Duration(hours: 1));
+      }
+      fireTimes.add(expiry.subtract(const Duration(minutes: 30)));
+    } else {
+      fireTimes.add(now.add(const Duration(minutes: 5)));
+      fireTimes.add(expiry.subtract(const Duration(minutes: 15)));
+      fireTimes.add(expiry.subtract(const Duration(minutes: 2)));
+    }
+
+    final normalized =
+        fireTimes
+            .where((when) => when.isAfter(now) && when.isBefore(expiry))
+            .toSet()
+            .toList()
+          ..sort();
+    if (normalized.length <= _maxRemindersPerNotice) {
+      return normalized;
+    }
+    return normalized.sublist(normalized.length - _maxRemindersPerNotice);
   }
 
   String _remainingLabel(Duration duration) {
@@ -167,7 +271,9 @@ class LocalReminderService {
   }
 
   int _notificationId(Set<int> used, String noticeId, DateTime when) {
-    int id = ('$noticeId|${when.toIso8601String()}').hashCode & 0x7fffffff;
+    final int noticePart = int.tryParse(noticeId) ?? _stableHash(noticeId);
+    final int minuteBucket = when.millisecondsSinceEpoch ~/ 60000;
+    int id = _stableHash('$noticePart|$minuteBucket') & 0x7fffffff;
     if (id == 0) {
       id = 1;
     }
@@ -179,5 +285,21 @@ class LocalReminderService {
     }
     used.add(id);
     return id;
+  }
+
+  int _stableHash(String input) {
+    const int fnvPrime = 0x01000193;
+    int hash = 0x811c9dc5;
+    for (final int codeUnit in input.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * fnvPrime) & 0xffffffff;
+    }
+    return hash;
+  }
+
+  void _log(String message) {
+    if (kDebugMode) {
+      debugPrint('[LocalReminderService] $message');
+    }
   }
 }

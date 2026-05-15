@@ -72,7 +72,7 @@ class NoticeModel {
     DateTime? expiry;
     if (rawExpiry != null) {
       final parsed = DateTime.tryParse(rawExpiry.toString());
-      expiry = parsed;
+      expiry = parsed?.isUtc == true ? parsed!.toLocal() : parsed;
     }
 
     return NoticeModel(

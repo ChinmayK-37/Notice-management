@@ -74,7 +74,7 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       await service.acknowledge(id);
       final updated = state.notifications.map((item) {
         if (item.id == id) {
-          return item.copyWith(isAcknowledged: true);
+          return item.copyWith(isRead: true, isAcknowledged: true);
         }
         return item;
       }).toList();

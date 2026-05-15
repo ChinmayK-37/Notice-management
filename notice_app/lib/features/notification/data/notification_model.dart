@@ -24,13 +24,19 @@ class NotificationModel {
       type: (json['type'] ?? 'NORMAL').toString(),
       isRead: json['isRead'] == true,
       isAcknowledged: json['isAcknowledged'] == true,
-      createdAt:
-          DateTime.tryParse((json['createdAt'] ?? '').toString()) ??
-          DateTime.now(),
+      createdAt: _parseDate(json['createdAt']),
       noticeId: json['noticeId'] is int
           ? json['noticeId'] as int
           : int.tryParse((json['noticeId'] ?? '').toString()),
     );
+  }
+
+  static DateTime _parseDate(dynamic value) {
+    final parsed = DateTime.tryParse((value ?? '').toString());
+    if (parsed == null) {
+      return DateTime.now();
+    }
+    return parsed.isUtc ? parsed.toLocal() : parsed;
   }
 
   Map<String, dynamic> toJson() {
