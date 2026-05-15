@@ -9,7 +9,7 @@ app:
       - "http://127.0.0.1:*"
   # Demo: include notices expired within the last N days in student feeds (0 = hide all expired).
   notice:
-    expiry-grace-days: 7
+    expiry-grace-days: 0
 
 spring:
   application:

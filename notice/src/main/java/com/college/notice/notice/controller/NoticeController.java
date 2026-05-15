@@ -66,6 +66,19 @@ public class NoticeController {
         );
     }
 
+    @GetMapping("/archived")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<NoticeResponse>>> getArchivedNotices() {
+        List<NoticeResponse> response = noticeService.getArchivedNotices();
+        return ResponseEntity.ok(
+                ApiResponse.<List<NoticeResponse>>builder()
+                        .success(true)
+                        .message("Archived notices fetched successfully")
+                        .data(response)
+                        .build()
+        );
+    }
+
     @PostMapping("/{id}/view")
     public ResponseEntity<ApiResponse<NoticeResponse>> recordView(@PathVariable("id") Long noticeId) {
         NoticeResponse response = noticeService.recordView(noticeId);
@@ -131,6 +144,32 @@ public class NoticeController {
                         .success(true)
                         .message("Notice deleted successfully")
                         .data(null)
+                        .build()
+        );
+    }
+
+    @PostMapping("/{id}/archive")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<NoticeResponse>> archiveNotice(@PathVariable("id") Long noticeId) {
+        NoticeResponse response = noticeService.archiveNotice(noticeId);
+        return ResponseEntity.ok(
+                ApiResponse.<NoticeResponse>builder()
+                        .success(true)
+                        .message("Notice archived successfully")
+                        .data(response)
+                        .build()
+        );
+    }
+
+    @PostMapping("/{id}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<NoticeResponse>> restoreNotice(@PathVariable("id") Long noticeId) {
+        NoticeResponse response = noticeService.restoreNotice(noticeId);
+        return ResponseEntity.ok(
+                ApiResponse.<NoticeResponse>builder()
+                        .success(true)
+                        .message("Notice restored successfully")
+                        .data(response)
                         .build()
         );
     }

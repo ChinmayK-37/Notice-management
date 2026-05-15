@@ -1,6 +1,7 @@
 package com.college.notice.notice.dto;
 
 import com.college.notice.notice.entity.Priority;
+import com.college.notice.notice.entity.NoticeState;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -20,6 +21,7 @@ public class NoticeResponse {
     private String category;
     private Priority priority;
     private boolean pinned;
+    private NoticeState state;
     private Long viewCount;
     private Long replyCount;
     private LocalDateTime createdAt;

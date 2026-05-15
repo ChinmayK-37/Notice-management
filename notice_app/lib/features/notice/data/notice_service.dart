@@ -36,6 +36,19 @@ class NoticeService {
     }
   }
 
+  Future<List<NoticeModel>> getArchivedNotices() async {
+    try {
+      final response = await apiService.dio.get<dynamic>('/notices/archived');
+      final raw = _extractList(response.data);
+      return raw
+          .whereType<Map<String, dynamic>>()
+          .map(NoticeModel.fromJson)
+          .toList();
+    } catch (error) {
+      throw Exception(ErrorHandler.getMessage(error));
+    }
+  }
+
   Future<NoticeModel> createNotice({
     required String title,
     required String description,
@@ -69,6 +82,28 @@ class NoticeService {
     try {
       final response = await apiService.dio.post<dynamic>(
         '/notices/$noticeId/view',
+      );
+      return NoticeModel.fromJson(_extractMap(response.data));
+    } catch (error) {
+      throw Exception(ErrorHandler.getMessage(error));
+    }
+  }
+
+  Future<NoticeModel> archiveNotice(String noticeId) async {
+    try {
+      final response = await apiService.dio.post<dynamic>(
+        '/notices/$noticeId/archive',
+      );
+      return NoticeModel.fromJson(_extractMap(response.data));
+    } catch (error) {
+      throw Exception(ErrorHandler.getMessage(error));
+    }
+  }
+
+  Future<NoticeModel> restoreNotice(String noticeId) async {
+    try {
+      final response = await apiService.dio.post<dynamic>(
+        '/notices/$noticeId/restore',
       );
       return NoticeModel.fromJson(_extractMap(response.data));
     } catch (error) {

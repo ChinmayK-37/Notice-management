@@ -56,6 +56,10 @@ public class Notice {
     @Column(nullable = false)
     private Priority priority;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, columnDefinition = "varchar(24) default 'ACTIVE'")
+    private NoticeState state;
+
     @Column(nullable = false, columnDefinition = "boolean default false")
     private boolean pinned;
 
@@ -83,6 +87,9 @@ public class Notice {
         }
         if (category == null || category.trim().isEmpty()) {
             category = "GENERAL";
+        }
+        if (state == null) {
+            state = NoticeState.ACTIVE;
         }
         if (viewCount == null) {
             viewCount = 0L;

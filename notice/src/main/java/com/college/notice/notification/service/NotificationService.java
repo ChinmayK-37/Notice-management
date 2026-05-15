@@ -10,6 +10,7 @@ import com.college.notice.notification.entity.Notification;
 import com.college.notice.notification.repository.NotificationRepository;
 import com.college.notice.shared.constants.Role;
 import org.springframework.data.domain.Pageable;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -55,7 +56,11 @@ public class NotificationService {
     @Transactional(readOnly = true)
     public List<NotificationResponse> getUserNotifications(Pageable pageable) {
         User currentUser = getCurrentUser();
-        return notificationRepository.findByUserIdOrderByCreatedAtDesc(currentUser.getId(), pageable)
+        return notificationRepository.findVisibleByUserIdOrderByCreatedAtDesc(
+                        currentUser.getId(),
+                        LocalDateTime.now(),
+                        pageable
+                )
                 .getContent()
                 .stream()
                 .map(this::toResponse)

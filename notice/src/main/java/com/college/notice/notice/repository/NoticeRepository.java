@@ -1,6 +1,7 @@
 package com.college.notice.notice.repository;
 
 import com.college.notice.notice.entity.Notice;
+import com.college.notice.notice.entity.NoticeState;
 import java.time.LocalDateTime;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,6 +20,7 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
                     or (t.department = :department and t.year = :year)
                   )
               and (n.expiryDate is null or n.expiryDate >= :visibilityCutoff)
+              and n.state = com.college.notice.notice.entity.NoticeState.ACTIVE
             order by n.pinned desc, n.createdAt desc
             """)
     List<Notice> findActiveNoticesVisibleForUser(
@@ -32,9 +34,22 @@ public interface NoticeRepository extends JpaRepository<Notice, Long> {
             from Notice n
             left join fetch n.targets
             join fetch n.createdBy
+            where n.state <> com.college.notice.notice.entity.NoticeState.ARCHIVED
             order by n.pinned desc, n.createdAt desc
             """)
     List<Notice> findAllWithTargetsForAdmin();
+
+    @Query("""
+            select distinct n
+            from Notice n
+            left join fetch n.targets
+            join fetch n.createdBy
+            where n.state = com.college.notice.notice.entity.NoticeState.ARCHIVED
+            order by n.expiryDate desc, n.createdAt desc
+            """)
+    List<Notice> findArchivedWithTargetsForAdmin();
+
+    List<Notice> findByStateNot(NoticeState state);
 
     List<Notice> findTop5ByOrderByCreatedAtDesc();
 

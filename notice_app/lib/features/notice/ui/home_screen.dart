@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:notice_app/features/auth/providers/auth_provider.dart';
 import 'package:notice_app/features/notice/data/activity_item_model.dart';
 import 'package:notice_app/features/notice/providers/notice_provider.dart';
+import 'package:notice_app/features/notice/ui/archived_notice_screen.dart';
 import 'package:notice_app/features/notice/ui/create_notice_screen.dart';
 import 'package:notice_app/features/notice/ui/notice_detail_screen.dart';
 import 'package:notice_app/features/notification/providers/notification_provider.dart';
@@ -134,6 +135,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(isAdmin ? 'Admin Dashboard' : 'Student Dashboard'),
+        actions: [
+          if (isAdmin)
+            IconButton(
+              tooltip: 'Archived notices',
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ArchivedNoticeScreen(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.archive_outlined),
+            ),
+        ],
       ),
       body: RefreshIndicator(
         onRefresh: _refresh,

@@ -7,6 +7,7 @@ class NoticeModel {
     required this.department,
     required this.priority,
     required this.pinned,
+    required this.state,
     required this.viewCount,
     required this.replyCount,
     this.attachmentFileName,
@@ -27,6 +28,7 @@ class NoticeModel {
   final String department;
   final String priority;
   final bool pinned;
+  final String state;
   final int viewCount;
   final int replyCount;
   final String? attachmentFileName;
@@ -83,6 +85,7 @@ class NoticeModel {
       department: _audienceFromJson(json),
       priority: (json['priority'] ?? 'LOW').toString(),
       pinned: json['pinned'] == true || json['isPinned'] == true,
+      state: (json['state'] ?? 'ACTIVE').toString(),
       viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
       replyCount: (json['replyCount'] as num?)?.toInt() ?? 0,
       attachmentFileName: json['attachmentFileName']?.toString(),
@@ -106,6 +109,7 @@ class NoticeModel {
       'department': department,
       'priority': priority,
       'pinned': pinned,
+      'state': state,
       'viewCount': viewCount,
       'replyCount': replyCount,
       'attachmentFileName': attachmentFileName,

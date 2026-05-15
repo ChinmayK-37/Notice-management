@@ -12,6 +12,7 @@ import com.college.notice.notice.dto.NoticeResponse;
 import com.college.notice.notice.dto.NoticeTargetResponse;
 import com.college.notice.notice.entity.Notice;
 import com.college.notice.notice.entity.NoticeReply;
+import com.college.notice.notice.entity.NoticeState;
 import com.college.notice.notice.entity.NoticeTarget;
 import com.college.notice.notice.event.NoticeCreatedEvent;
 import com.college.notice.notice.config.NoticeExpiryPolicy;
@@ -56,6 +57,7 @@ public class NoticeService {
                 .priority(request.getPriority())
                 .pinned(request.isPinned())
                 .viewCount(0L)
+                .state(NoticeState.ACTIVE)
                 .expiryDate(request.getExpiryDate())
                 .createdBy(currentUser)
                 .targets(new ArrayList<>())
@@ -68,9 +70,10 @@ public class NoticeService {
         return toResponse(savedNotice, Optional.empty());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public List<NoticeResponse> getNoticesForUser() {
         User currentUser = getCurrentUser();
+        refreshNoticeLifecycle();
         List<Notice> notices;
         if (currentUser.getRole() == Role.ADMIN) {
             notices = noticeRepository.findAllWithTargetsForAdmin();
@@ -105,6 +108,7 @@ public class NoticeService {
         notice.setPriority(request.getPriority());
         notice.setPinned(request.isPinned());
         notice.setExpiryDate(request.getExpiryDate());
+        notice.setState(resolveStateForExpiry(request.getExpiryDate()));
         applyTargets(notice, request);
 
         Notice updatedNotice = noticeRepository.save(notice);
@@ -114,6 +118,7 @@ public class NoticeService {
     @Transactional
     public NoticeResponse recordView(Long noticeId) {
         User currentUser = getCurrentUser();
+        refreshNoticeLifecycle();
         Notice notice = noticeRepository.findByIdWithTargets(noticeId)
                 .orElseThrow(() -> new RuntimeException("Notice not found"));
 
@@ -206,10 +211,76 @@ public class NoticeService {
     }
 
     @Transactional
+    public List<NoticeResponse> getArchivedNotices() {
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Only admins can view archived notices");
+        }
+        refreshNoticeLifecycle();
+        return noticeRepository.findArchivedWithTargetsForAdmin().stream()
+                .map(notice -> toResponse(notice, Optional.empty()))
+                .toList();
+    }
+
+    @Transactional
     public void deleteNotice(Long noticeId) {
         Notice notice = noticeRepository.findById(noticeId)
                 .orElseThrow(() -> new RuntimeException("Notice not found"));
         noticeRepository.delete(notice);
+    }
+
+    @Transactional
+    public NoticeResponse archiveNotice(Long noticeId) {
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Only admins can archive notices");
+        }
+        Notice notice = noticeRepository.findByIdWithTargets(noticeId)
+                .orElseThrow(() -> new RuntimeException("Notice not found"));
+        notice.setState(NoticeState.ARCHIVED);
+        return toResponse(noticeRepository.save(notice), Optional.empty());
+    }
+
+    @Transactional
+    public NoticeResponse restoreNotice(Long noticeId) {
+        User currentUser = getCurrentUser();
+        if (currentUser.getRole() != Role.ADMIN) {
+            throw new RuntimeException("Only admins can restore notices");
+        }
+        Notice notice = noticeRepository.findByIdWithTargets(noticeId)
+                .orElseThrow(() -> new RuntimeException("Notice not found"));
+        notice.setState(resolveStateForExpiry(notice.getExpiryDate()));
+        return toResponse(noticeRepository.save(notice), Optional.empty());
+    }
+
+    @Transactional
+    public void refreshNoticeLifecycle() {
+        List<Notice> candidates = noticeRepository.findByStateNot(NoticeState.ARCHIVED);
+        boolean changed = false;
+        for (Notice notice : candidates) {
+            NoticeState nextState = resolveStateForExpiry(notice.getExpiryDate());
+            if (notice.getState() != nextState) {
+                notice.setState(nextState);
+                changed = true;
+            }
+        }
+        if (changed) {
+            noticeRepository.saveAll(candidates);
+        }
+    }
+
+    private NoticeState resolveStateForExpiry(LocalDateTime expiryDate) {
+        if (expiryDate == null) {
+            return NoticeState.ACTIVE;
+        }
+        LocalDateTime now = LocalDateTime.now();
+        if (expiryDate.isBefore(now.minusDays(15))) {
+            return NoticeState.ARCHIVED;
+        }
+        if (expiryDate.isBefore(now)) {
+            return NoticeState.EXPIRED;
+        }
+        return NoticeState.ACTIVE;
     }
 
     private void applyTargets(Notice notice, NoticeRequest request) {
@@ -261,6 +332,7 @@ public class NoticeService {
                 .category(notice.getCategory())
                 .priority(notice.getPriority())
                 .pinned(notice.isPinned())
+                .state(notice.getState() == null ? NoticeState.ACTIVE : notice.getState())
                 .viewCount(notice.getViewCount() == null ? 0L : notice.getViewCount())
                 .replyCount(noticeReplyRepository.countByNoticeId(notice.getId()))
                 .createdAt(notice.getCreatedAt())

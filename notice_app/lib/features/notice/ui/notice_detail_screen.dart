@@ -26,6 +26,7 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
   bool _repliesLoading = false;
   bool _isMarkReadLoading = false;
   bool _isAcknowledgeLoading = false;
+  bool _isArchiveLoading = false;
 
   bool get _hasNotification => _notice.notificationId != null;
 
@@ -225,6 +226,35 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
     }
   }
 
+  Future<void> _toggleArchive() async {
+    if (_isArchiveLoading) {
+      return;
+    }
+    setState(() => _isArchiveLoading = true);
+    try {
+      final service = ref.read(noticeServiceProvider);
+      final updated = _notice.state.toUpperCase() == 'ARCHIVED'
+          ? await service.restoreNotice(_notice.id)
+          : await service.archiveNotice(_notice.id);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _notice = updated);
+      await ref.read(noticeProvider.notifier).fetchNotices();
+      _showMessage(
+        updated.state.toUpperCase() == 'ARCHIVED'
+            ? 'Notice archived'
+            : 'Notice restored',
+      );
+    } catch (error) {
+      _showMessage(error.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) {
+        setState(() => _isArchiveLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
@@ -272,6 +302,14 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                             label: category,
                             color: scheme.primary,
                           ),
+                          if (_notice.state.toUpperCase() != 'ACTIVE')
+                            _DetailChip(
+                              icon: _notice.state.toUpperCase() == 'ARCHIVED'
+                                  ? Icons.archive_outlined
+                                  : Icons.history_outlined,
+                              label: _notice.state.toUpperCase(),
+                              color: scheme.secondary,
+                            ),
                           _DetailChip(
                             icon: Icons.schedule_outlined,
                             label: NoticeVisuals.deadlineLabel(expiry),
@@ -413,16 +451,44 @@ class _NoticeDetailScreenState extends ConsumerState<NoticeDetailScreen> {
                 ),
                 const SizedBox(height: 14),
                 if (authState.isAdmin)
-                  FilledButton.icon(
-                    onPressed: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => AnalyticsScreen(noticeId: _notice.id),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      FilledButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) =>
+                                  AnalyticsScreen(noticeId: _notice.id),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.insights_outlined),
+                        label: const Text('View engagement analytics'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _isArchiveLoading ? null : _toggleArchive,
+                        icon: _isArchiveLoading
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Icon(
+                                _notice.state.toUpperCase() == 'ARCHIVED'
+                                    ? Icons.restore_outlined
+                                    : Icons.archive_outlined,
+                              ),
+                        label: Text(
+                          _notice.state.toUpperCase() == 'ARCHIVED'
+                              ? 'Restore'
+                              : 'Archive',
                         ),
-                      );
-                    },
-                    icon: const Icon(Icons.insights_outlined),
-                    label: const Text('View engagement analytics'),
+                      ),
+                    ],
                   )
                 else ...[
                   if (!_hasNotification)
